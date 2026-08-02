@@ -7,6 +7,7 @@
 export 'src/theme/miuix/theme/miuix_theme.dart';
 export 'src/theme/miuix/theme/miuix_colors.dart';
 export 'src/theme/miuix/theme/miuix_text_styles.dart';
+export 'src/theme/miuix/theme/miuix_font_weight.dart';
 export 'src/theme/miuix/theme/miuix_motion.dart';
 
 // ===== 动态取色（Monet / 种子色 → 整套配色） =====

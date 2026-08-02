@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 
 import '../foundation/miuix_content_color.dart';
+import '../theme/miuix_font_weight.dart';
 import '../theme/miuix_theme.dart';
 
 /// Miuix 风格的文本。对应 Kotlin `Text`。
@@ -52,15 +53,19 @@ class MiuixText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = MiuixTheme.of(context);
     final base = style ?? theme.textStyles.main;
-    final resolvedColor =
-        color ?? base.color ?? MiuixContentColor.of(context);
+    final resolvedColor = color ?? base.color ?? MiuixContentColor.of(context);
+    final resolvedFontWeight = fontWeight == null
+        ? null
+        : adjustFontWeight(fontWeight!, theme.fontWeightAdjustment);
     return Text(
       text,
       style: base.copyWith(
         color: resolvedColor,
         fontSize: fontSize,
-        fontWeight: fontWeight,
-        fontFamily: fontFamily == null ? null : TextStyle(fontFamily: fontFamily).fontFamily,
+        fontWeight: resolvedFontWeight,
+        fontFamily: fontFamily == null
+            ? null
+            : TextStyle(fontFamily: fontFamily).fontFamily,
         letterSpacing: letterSpacing,
         fontStyle: fontStyle,
         decoration: decoration,
