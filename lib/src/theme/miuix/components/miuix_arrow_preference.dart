@@ -59,6 +59,7 @@ class MiuixArrowPreference extends StatelessWidget {
     this.onClick,
     this.holdDownState = false,
     this.enabled = true,
+    this.titleFontWeight,
   });
 
   /// 行标题。
@@ -95,6 +96,8 @@ class MiuixArrowPreference extends StatelessWidget {
   /// 是否启用。
   final bool enabled;
 
+  final FontWeight? titleFontWeight;
+
   @override
   Widget build(BuildContext context) {
     final endActionColors = MiuixArrowPreferenceDefaults.endActionColors(
@@ -113,16 +116,10 @@ class MiuixArrowPreference extends StatelessWidget {
           flex: 1,
           child: Padding(
             padding: const EdgeInsetsDirectional.only(end: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: endActions!,
-            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: endActions!),
           ),
         ),
-      _ArrowPreferenceEndAction(
-        colors: endActionColors,
-        enabled: enabled,
-      ),
+      _ArrowPreferenceEndAction(colors: endActionColors, enabled: enabled),
     ];
 
     return MiuixBasicComponent(
@@ -137,6 +134,7 @@ class MiuixArrowPreference extends StatelessWidget {
       onClick: onClick,
       holdDownState: holdDownState,
       enabled: enabled,
+      titleFontWeight: titleFontWeight,
     );
   }
 }
@@ -162,9 +160,7 @@ class _ArrowPreferenceEndAction extends StatelessWidget {
       height: 16,
       child: Transform.scale(
         scaleX: isRtl ? -1 : 1,
-        child: CustomPaint(
-          painter: _ArrowRightPainter(color: tint),
-        ),
+        child: CustomPaint(painter: _ArrowRightPainter(color: tint)),
       ),
     );
   }

@@ -17,21 +17,26 @@ class MiuixThemeData {
     required this.colors,
     required this.textStyles,
     required this.brightness,
+    this.fontWeightAdjustment = 0,
   });
 
   final MiuixColors colors;
   final MiuixTextStyles textStyles;
   final Brightness brightness;
 
+  final int fontWeightAdjustment;
+
   /// 浅色主题。
   factory MiuixThemeData.light({
     MiuixColors? colors,
     MiuixTextStyles? textStyles,
+    int fontWeightAdjustment = 0,
   }) {
     return MiuixThemeData(
       colors: colors ?? lightColorScheme(),
       textStyles: textStyles ?? defaultTextStyles(),
       brightness: Brightness.light,
+      fontWeightAdjustment: fontWeightAdjustment,
     );
   }
 
@@ -39,11 +44,13 @@ class MiuixThemeData {
   factory MiuixThemeData.dark({
     MiuixColors? colors,
     MiuixTextStyles? textStyles,
+    int fontWeightAdjustment = 0,
   }) {
     return MiuixThemeData(
       colors: colors ?? darkColorScheme(),
       textStyles: textStyles ?? defaultTextStyles(),
       brightness: Brightness.dark,
+      fontWeightAdjustment: fontWeightAdjustment,
     );
   }
 
@@ -53,12 +60,16 @@ class MiuixThemeData {
     MiuixColors? lightColors,
     MiuixColors? darkColors,
     MiuixTextStyles? textStyles,
+    int fontWeightAdjustment = 0,
   }) {
     final isDark = brightness == Brightness.dark;
     return MiuixThemeData(
-      colors: isDark ? (darkColors ?? darkColorScheme()) : (lightColors ?? lightColorScheme()),
+      colors: isDark
+          ? (darkColors ?? darkColorScheme())
+          : (lightColors ?? lightColorScheme()),
       textStyles: textStyles ?? defaultTextStyles(),
       brightness: brightness,
+      fontWeightAdjustment: fontWeightAdjustment,
     );
   }
 
@@ -66,11 +77,13 @@ class MiuixThemeData {
     MiuixColors? colors,
     MiuixTextStyles? textStyles,
     Brightness? brightness,
+    int? fontWeightAdjustment,
   }) {
     return MiuixThemeData(
       colors: colors ?? this.colors,
       textStyles: textStyles ?? this.textStyles,
       brightness: brightness ?? this.brightness,
+      fontWeightAdjustment: fontWeightAdjustment ?? this.fontWeightAdjustment,
     );
   }
 
@@ -80,11 +93,13 @@ class MiuixThemeData {
     return other is MiuixThemeData &&
         other.colors == colors &&
         other.textStyles == textStyles &&
-        other.brightness == brightness;
+        other.brightness == brightness &&
+        other.fontWeightAdjustment == fontWeightAdjustment;
   }
 
   @override
-  int get hashCode => Object.hash(colors, textStyles, brightness);
+  int get hashCode =>
+      Object.hash(colors, textStyles, brightness, fontWeightAdjustment);
 }
 
 /// 提供 [MiuixThemeData] 给子树。对应 Kotlin 的 `MiuixTheme { ... }`。
@@ -97,25 +112,19 @@ class MiuixThemeData {
 /// )
 /// ```
 class MiuixTheme extends InheritedWidget {
-  const MiuixTheme({
-    super.key,
-    required this.data,
-    required super.child,
-  });
+  const MiuixTheme({super.key, required this.data, required super.child});
 
   final MiuixThemeData data;
 
   /// 获取当前上下文的 [MiuixThemeData]。若未包裹则回退到浅色默认值。
   static MiuixThemeData of(BuildContext context) {
-    final widget =
-        context.dependOnInheritedWidgetOfExactType<MiuixTheme>();
+    final widget = context.dependOnInheritedWidgetOfExactType<MiuixTheme>();
     return widget?.data ?? MiuixThemeData.light();
   }
 
   /// 仅读取，不建立依赖（用于不希望随主题重建的场景）。
   static MiuixThemeData? maybeOf(BuildContext context) {
-    final widget =
-        context.getInheritedWidgetOfExactType<MiuixTheme>();
+    final widget = context.getInheritedWidgetOfExactType<MiuixTheme>();
     return widget?.data;
   }
 
@@ -173,6 +182,7 @@ enum MiuixColorSchemeMode {
   monetLight,
   monetDark,
 }
+
 /// 管理并解析当前 Miuix 配色，向子树提供 [MiuixTheme]。对应 Kotlin `ThemeController`。
 ///
 /// 按 [colorSchemeMode] 决定配色来源：
@@ -194,6 +204,7 @@ class MiuixThemeController extends StatefulWidget {
     this.colorSpec = MiuixThemeColorSpec.spec2021,
     this.paletteStyle = MiuixThemePaletteStyle.tonalSpot,
     this.isDark,
+    this.fontWeightAdjustment,
     required this.child,
   });
 
@@ -220,6 +231,8 @@ class MiuixThemeController extends StatefulWidget {
 
   /// 是否深色。null 时跟随系统。对应 Kotlin `isDark`。
   final bool? isDark;
+
+  final int? fontWeightAdjustment;
 
   final Widget child;
 
@@ -288,6 +301,7 @@ class _MiuixThemeControllerState extends State<MiuixThemeController> {
         colors: colors,
         textStyles: widget.textStyles ?? defaultTextStyles(),
         brightness: brightness,
+        fontWeightAdjustment: widget.fontWeightAdjustment ?? 0,
       ),
       child: widget.child,
     );

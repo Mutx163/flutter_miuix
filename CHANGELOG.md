@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.10
+
+### 新增
+
+- **系统字重适配**：公开 `fontWeightAdjustment` 主题字段和字重工具，支持应用按 Android 无障碍字体粗细设置调整 Miuix 语义文本。
+- **BasicComponent 标题字重**：`MiuixBasicComponent` 与 `MiuixArrowPreference` 新增可选 `titleFontWeight`，保留默认 w500 行为。
+
 ## 1.0.9
 
 ### 修复

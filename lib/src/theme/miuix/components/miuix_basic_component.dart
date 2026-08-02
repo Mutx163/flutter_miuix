@@ -85,6 +85,7 @@ class MiuixBasicComponent extends StatelessWidget {
     this.role,
     this.holdDownState = false,
     this.enabled = true,
+    this.titleFontWeight,
     this.content,
   });
 
@@ -102,6 +103,8 @@ class MiuixBasicComponent extends StatelessWidget {
   final bool holdDownState;
   final bool enabled;
 
+  final FontWeight? titleFontWeight;
+
   /// 自定义中心内容；为 null 时由 [title] 与 [summary] 构建。
   final List<Widget>? content;
 
@@ -113,13 +116,14 @@ class MiuixBasicComponent extends StatelessWidget {
         titleColor ?? MiuixBasicComponentDefaults.titleColor(context);
     final resolvedSummaryColor =
         summaryColor ?? MiuixBasicComponentDefaults.summaryColor(context);
-    final centerChildren = content ??
+    final centerChildren =
+        content ??
         <Widget>[
           if (title != null)
             MiuixText(
               title!,
               fontSize: theme.textStyles.headline1.fontSize,
-              fontWeight: FontWeight.w500,
+              fontWeight: titleFontWeight ?? FontWeight.w500,
               color: resolvedTitleColor.resolve(enabled),
             ),
           if (summary != null)
@@ -139,7 +143,10 @@ class MiuixBasicComponent extends StatelessWidget {
     final hasSideActions = startAction != null || endActions != null;
     Widget mainContent;
     if (!hasSideActions) {
-      mainContent = Align(alignment: AlignmentDirectional.centerStart, child: center);
+      mainContent = Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: center,
+      );
     } else {
       mainContent = _BasicComponentRow(
         start: startAction == null
@@ -158,10 +165,7 @@ class MiuixBasicComponent extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: endActions!,
-                  ),
+                  Row(mainAxisSize: MainAxisSize.min, children: endActions!),
                 ],
               ),
       );
@@ -173,10 +177,7 @@ class MiuixBasicComponent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         mainContent,
-        if (bottomAction != null) ...[
-          const SizedBox(height: 8),
-          bottomAction!,
-        ],
+        if (bottomAction != null) ...[const SizedBox(height: 8), bottomAction!],
       ],
     );
     body = Padding(padding: insideMargin, child: body);
@@ -212,9 +213,11 @@ class MiuixBasicComponent extends StatelessWidget {
       container: true,
       label: onClickLabel,
       enabled: effectiveEnabled,
-      button: role == MiuixBasicComponentRole.button ||
+      button:
+          role == MiuixBasicComponentRole.button ||
           role == MiuixBasicComponentRole.dropdownList,
-      checked: role == MiuixBasicComponentRole.checkbox ||
+      checked:
+          role == MiuixBasicComponentRole.checkbox ||
               role == MiuixBasicComponentRole.radioButton ||
               role == MiuixBasicComponentRole.switchControl
           ? false
@@ -228,16 +231,15 @@ class MiuixBasicComponent extends StatelessWidget {
 enum _BasicSlotType { start, center, end }
 
 class _BasicComponentRow extends MultiChildRenderObjectWidget {
-  _BasicComponentRow({
-    Widget? start,
-    required Widget center,
-    Widget? end,
-  }) : super(children: [
+  _BasicComponentRow({Widget? start, required Widget center, Widget? end})
+    : super(
+        children: [
           if (start != null)
             _BasicSlot(slot: _BasicSlotType.start, child: start),
           _BasicSlot(slot: _BasicSlotType.center, child: center),
           if (end != null) _BasicSlot(slot: _BasicSlotType.end, child: end),
-        ]);
+        ],
+      );
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
@@ -325,20 +327,14 @@ class _RenderBasicComponentRow extends RenderBox
     final widthAfterStart = math.max(0.0, maxWidth - startWidth - startSpacer);
 
     final endIntrinsic = end?.getMaxIntrinsicWidth(maxHeight) ?? 0;
-    final endHardCap = (math.max(0.0, widthAfterStart - _spacer) * 0.6).floorToDouble();
+    final endHardCap = (math.max(0.0, widthAfterStart - _spacer) * 0.6)
+        .floorToDouble();
     final endTarget = math.min(endIntrinsic, endHardCap);
-    end?.layout(
-      loose.copyWith(maxWidth: endTarget),
-      parentUsesSize: true,
-    );
+    end?.layout(loose.copyWith(maxWidth: endTarget), parentUsesSize: true);
     final endWidth = end?.size.width ?? 0;
     final endSpacer = endWidth > 0 ? _spacer : 0.0;
-    final centerWidth =
-        math.max(0.0, widthAfterStart - endWidth - endSpacer);
-    center.layout(
-      loose.copyWith(maxWidth: centerWidth),
-      parentUsesSize: true,
-    );
+    final centerWidth = math.max(0.0, widthAfterStart - endWidth - endSpacer);
+    center.layout(loose.copyWith(maxWidth: centerWidth), parentUsesSize: true);
 
     final startHeight = start?.size.height ?? 0;
     final endHeight = end?.size.height ?? 0;
@@ -349,7 +345,9 @@ class _RenderBasicComponentRow extends RenderBox
     final layoutHeight = constraints.constrainHeight(rowHeight);
     final layoutWidth = constraints.hasBoundedWidth
         ? constraints.maxWidth
-        : constraints.constrainWidth(startWidth + startSpacer + center.size.width + endSpacer + endWidth);
+        : constraints.constrainWidth(
+            startWidth + startSpacer + center.size.width + endSpacer + endWidth,
+          );
     size = Size(layoutWidth, layoutHeight);
 
     void place(RenderBox? child, double logicalX, double y) {
@@ -366,11 +364,7 @@ class _RenderBasicComponentRow extends RenderBox
       startWidth + startSpacer,
       (rowHeight - center.size.height) / 2,
     );
-    place(
-      end,
-      size.width - endWidth,
-      math.max(0.0, rowHeight - endHeight) / 2,
-    );
+    place(end, size.width - endWidth, math.max(0.0, rowHeight - endHeight) / 2);
   }
 
   @override
