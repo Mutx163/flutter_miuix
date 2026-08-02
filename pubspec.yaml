@@ -31,12 +31,12 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  # HCT 色彩科学 + Material 动态配色方案（TonalSpot/Vibrant 等 9 种），
-  # 用于从种子色生成整套 miuix 配色。对应 Kotlin 端的 com.materialkolor。
+  # HCT color science and Material dynamic color schemes.
+  # Generates the complete Miuix palette from a seed color.
   material_color_utilities: ^0.13.0
 
-  # Android 系统壁纸取色（platformDynamicColors 的 Android 实现）。
-  # 仅 Android 生效，其他平台回退到固定种子色。
+  # Android system wallpaper color extraction.
+  # Other platforms fall back to the fixed seed color.
   dynamic_color: ^1.8.1
 
 dev_dependencies:
@@ -61,7 +61,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Miuix 液态玻璃/模糊效果的片段着色器（批次 5）。
+  # Miuix liquid-glass and blur fragment shader.
   shaders:
     - shaders/miuix_bloom_stroke.frag
 
