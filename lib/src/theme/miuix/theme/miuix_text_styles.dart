@@ -125,25 +125,67 @@ class MiuixTextStyles {
 
   @override
   int get hashCode => Object.hash(
-        main, paragraph, body1, body2, button, footnote1, footnote2,
-        headline1, headline2, subtitle, title1, title2, title3, title4,
-      );
+    main,
+    paragraph,
+    body1,
+    body2,
+    button,
+    footnote1,
+    footnote2,
+    headline1,
+    headline2,
+    subtitle,
+    title1,
+    title2,
+    title3,
+    title4,
+  );
+}
+
+/// 按 [adjustment] 偏移字重，对应 Android Compose 平台自动施加的
+/// `Configuration.fontWeightAdjustment`（跟随系统字体粗细度）。
+///
+/// [adjustment] 为权重数值，100 为一档（与 Flutter [FontWeight] 步进一致）。
+/// [weight] 为 null 时按 w400 处理。偏移量为零时原样返回，包括 null。
+FontWeight? adjustFontWeight(FontWeight? weight, int adjustment) {
+  if (adjustment == 0) {
+    return weight;
+  }
+
+  final baseWeight = weight ?? FontWeight.w400;
+  final targetWeight = baseWeight.value + adjustment;
+  final weightIndex = ((targetWeight / 100).round() - 1).clamp(
+    0,
+    FontWeight.values.length - 1,
+  );
+  return FontWeight.values[weightIndex];
+}
+
+/// 在样式上应用字重偏移的便捷写法。
+extension MiuixFontWeightAdjustment on TextStyle {
+  TextStyle withMiuixWeight(int adjustment) {
+    if (adjustment == 0) {
+      return this;
+    }
+
+    return copyWith(fontWeight: adjustFontWeight(fontWeight, adjustment));
+  }
 }
 
 /// 默认文本样式，与 Miuix 规范一致。字号单位为逻辑像素（Flutter sp 近似）。
 MiuixTextStyles defaultTextStyles() => MiuixTextStyles(
-      main: const TextStyle(fontSize: 17),
-      paragraph: const TextStyle(fontSize: 17, height: 1.2),
-      body1: const TextStyle(fontSize: 16),
-      body2: const TextStyle(fontSize: 14),
-      button: const TextStyle(fontSize: 17),
-      footnote1: const TextStyle(fontSize: 13),
-      footnote2: const TextStyle(fontSize: 11),
-      headline1: const TextStyle(fontSize: 17),
-      headline2: const TextStyle(fontSize: 16),
-      subtitle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-      title1: const TextStyle(fontSize: 32),
-      title2: const TextStyle(fontSize: 24),
-      title3: const TextStyle(fontSize: 20),
-      title4: const TextStyle(fontSize: 18),
-    );
+  main: const TextStyle(fontSize: 17),
+  paragraph: const TextStyle(fontSize: 17, height: 1.2),
+  body1: const TextStyle(fontSize: 16),
+  body2: const TextStyle(fontSize: 14),
+  button: const TextStyle(fontSize: 17),
+  footnote1: const TextStyle(fontSize: 13),
+  footnote2: const TextStyle(fontSize: 11),
+  headline1: const TextStyle(fontSize: 17),
+  headline2: const TextStyle(fontSize: 16),
+  subtitle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+  title1: const TextStyle(fontSize: 32),
+  title2: const TextStyle(fontSize: 24),
+  title3: const TextStyle(fontSize: 20),
+  title4: const TextStyle(fontSize: 18),
+);

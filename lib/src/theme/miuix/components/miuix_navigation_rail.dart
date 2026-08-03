@@ -12,6 +12,7 @@ import '../foundation/miuix_pressable.dart';
 import '../foundation/miuix_squircle.dart';
 import '../icon/miuix_basic_icons.dart';
 import '../theme/miuix_motion.dart';
+import '../theme/miuix_text_styles.dart';
 import '../theme/miuix_theme.dart';
 import 'miuix_icon.dart';
 
@@ -126,8 +127,7 @@ class MiuixNavigationRail extends StatefulWidget {
         MiuixNavigationRailDefaults.collapseContentDescription,
     this.scrollController,
     this.iconSize = MiuixNavigationRailDefaults.iconSize,
-    this.itemVerticalPadding =
-        MiuixNavigationRailDefaults.itemVerticalPadding,
+    this.itemVerticalPadding = MiuixNavigationRailDefaults.itemVerticalPadding,
     this.expandedItemVerticalPadding =
         MiuixNavigationRailDefaults.expandedItemContentVerticalPadding,
     this.labelFontSize = MiuixNavigationRailDefaults.labelFontSize,
@@ -447,7 +447,7 @@ class MiuixNavigationRailItem extends StatelessWidget {
                 color: contentColor,
                 fontSize: collapsedFontSize,
                 fontWeight: FontWeight.w500,
-              ),
+              ).withMiuixWeight(MiuixTheme.of(context).fontWeightAdjustment),
             ),
           ],
         ),
@@ -543,7 +543,7 @@ class _ExpandableRailItem extends StatelessWidget {
       color: colors.content,
       fontSize: lerpDouble(collapsedFontSize, expandedFontSize, fraction),
       fontWeight: FontWeight.w500,
-    );
+    ).withMiuixWeight(MiuixTheme.of(context).fontWeightAdjustment);
     return MiuixPressable(
       onPressed: enabled ? onPressed : null,
       enabled: enabled,
@@ -620,14 +620,16 @@ class _RailItemLayoutDelegate extends MultiChildLayoutDelegate {
         ? constraints.maxWidth
         : collapsedWidth;
     // 折叠态：上下 pad + 图标 + 指示器上下 pad(4*2) + 图标文字间距(4) + 标签行高。
-    final collapsedHeight = collapsedPad +
+    final collapsedHeight =
+        collapsedPad +
         iconSize +
         MiuixNavigationRailDefaults.collapsedIndicatorVerticalPadding * 2 +
         MiuixNavigationRailDefaults.iconTextSpacing +
         collapsedFontSize * _fontHeightFactor +
         collapsedPad;
     // 展开态：上下 pad + max(图标, 标签行高)。
-    final expandedHeight = expandedPad * 2 +
+    final expandedHeight =
+        expandedPad * 2 +
         math.max(iconSize, expandedFontSize * _fontHeightFactor);
     return constraints.constrain(
       Size(width, lerpDouble(collapsedHeight, expandedHeight, fraction)!),

@@ -140,6 +140,8 @@ class MiuixSystemTheme extends StatelessWidget {
     this.light,
     this.dark,
     this.textStyles,
+    this.fontWeightAdjustment,
+    this.boldTextFontWeightAdjustment = 100,
     required this.child,
   });
 
@@ -152,17 +154,27 @@ class MiuixSystemTheme extends StatelessWidget {
   /// 自定义文本样式。
   final MiuixTextStyles? textStyles;
 
+  /// 显式指定全局字重偏移量。未指定时跟随 [MediaQuery.boldTextOf]。
+  final int? fontWeightAdjustment;
+
+  /// 自动跟随系统粗体文字时使用的字重偏移量。
+  final int boldTextFontWeightAdjustment;
+
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final brightness = MediaQuery.platformBrightnessOf(context);
+    final adjustment =
+        fontWeightAdjustment ??
+        (MediaQuery.boldTextOf(context) ? boldTextFontWeightAdjustment : 0);
     return MiuixTheme(
       data: MiuixThemeData.of(
         brightness,
         lightColors: light,
         darkColors: dark,
         textStyles: textStyles,
+        fontWeightAdjustment: adjustment,
       ),
       child: child,
     );
@@ -205,6 +217,7 @@ class MiuixThemeController extends StatefulWidget {
     this.paletteStyle = MiuixThemePaletteStyle.tonalSpot,
     this.isDark,
     this.fontWeightAdjustment,
+    this.boldTextFontWeightAdjustment = 100,
     required this.child,
   });
 
@@ -232,7 +245,11 @@ class MiuixThemeController extends StatefulWidget {
   /// 是否深色。null 时跟随系统。对应 Kotlin `isDark`。
   final bool? isDark;
 
+  /// 显式指定全局字重偏移量。未指定时跟随 [MediaQuery.boldTextOf]。
   final int? fontWeightAdjustment;
+
+  /// 自动跟随系统粗体文字时使用的字重偏移量。
+  final int boldTextFontWeightAdjustment;
 
   final Widget child;
 
@@ -301,7 +318,11 @@ class _MiuixThemeControllerState extends State<MiuixThemeController> {
         colors: colors,
         textStyles: widget.textStyles ?? defaultTextStyles(),
         brightness: brightness,
-        fontWeightAdjustment: widget.fontWeightAdjustment ?? 0,
+        fontWeightAdjustment:
+            widget.fontWeightAdjustment ??
+            (MediaQuery.boldTextOf(context)
+                ? widget.boldTextFontWeightAdjustment
+                : 0),
       ),
       child: widget.child,
     );

@@ -10,6 +10,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 
 import '../foundation/miuix_popup_utils.dart';
+import '../theme/miuix_text_styles.dart';
 import '../theme/miuix_theme.dart';
 import 'miuix_overlay_dialog.dart' show MiuixDismissScope;
 
@@ -271,10 +272,7 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
       // AnimationStatus.dismissed 判定退出完成（那样永远等不到，遮罩层会残留
       // 并吞掉所有点击）。改为在 TickerFuture 完成时收尾；若期间被重新打开，
       // animateWith 会取消上一条 ticker，orCancel 抛错，onError 里忽略即可。
-      _springTo(0).orCancel.then(
-        (_) => _finishDismiss(),
-        onError: (_) {},
-      );
+      _springTo(0).orCancel.then((_) => _finishDismiss(), onError: (_) {});
     }
   }
 
@@ -516,10 +514,14 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
             Text(
               widget.title!,
               textAlign: TextAlign.center,
-              style: MiuixTheme.of(context).textStyles.title4.copyWith(
-                fontWeight: FontWeight.w500,
-                color: MiuixTheme.of(context).colors.onSurface,
-              ),
+              style: MiuixTheme.of(context)
+                  .textStyles
+                  .title4
+                  .copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: MiuixTheme.of(context).colors.onSurface,
+                  )
+                  .withMiuixWeight(MiuixTheme.of(context).fontWeightAdjustment),
             ),
           Align(
             alignment: AlignmentDirectional.centerStart,

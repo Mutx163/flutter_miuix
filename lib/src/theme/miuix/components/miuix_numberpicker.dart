@@ -62,10 +62,11 @@ class MiuixNumberPicker extends StatefulWidget {
     this.colors,
     this.textStyle,
     this.itemHeight = MiuixNumberPickerDefaults.itemHeight,
-  })  : assert(
-            visibleItemCount % 2 == 1 && visibleItemCount >= 3,
-            'visibleItemCount must be odd and at least 3'),
-        assert(min <= max, 'range must not be empty');
+  }) : assert(
+         visibleItemCount % 2 == 1 && visibleItemCount >= 3,
+         'visibleItemCount must be odd and at least 3',
+       ),
+       assert(min <= max, 'range must not be empty');
 
   final int value;
   final ValueChanged<int>? onValueChanged;
@@ -120,15 +121,14 @@ class _MiuixNumberPickerState extends State<MiuixNumberPicker>
     super.dispose();
   }
 
-  bool get _effectiveEnabled =>
-      widget.enabled && widget.onValueChanged != null;
+  bool get _effectiveEnabled => widget.enabled && widget.onValueChanged != null;
 
   int get _itemCount => widget.max - widget.min + 1;
-  int get _currentIndex => widget.value.clamp(widget.min, widget.max) - widget.min;
+  int get _currentIndex =>
+      widget.value.clamp(widget.min, widget.max) - widget.min;
   int get _halfVisible => widget.visibleItemCount ~/ 2;
 
-  String _labelFor(int value) =>
-      widget.label?.call(value) ?? value.toString();
+  String _labelFor(int value) => widget.label?.call(value) ?? value.toString();
 
   int _computeEffectiveIndex() {
     final rawIndex = _currentIndex + _offset.value.round();
@@ -185,28 +185,27 @@ class _MiuixNumberPickerState extends State<MiuixNumberPicker>
           ),
         )
         .then((_) {
-      final offsetInt = _offset.value.round();
-      int newIndex;
-      if (widget.wrapAround) {
-        newIndex =
-            ((_currentIndex + offsetInt) % _itemCount + _itemCount) %
+          final offsetInt = _offset.value.round();
+          int newIndex;
+          if (widget.wrapAround) {
+            newIndex =
+                ((_currentIndex + offsetInt) % _itemCount + _itemCount) %
                 _itemCount;
-      } else {
-        newIndex = (_currentIndex + offsetInt).clamp(0, _itemCount - 1);
-      }
-      final newValue = widget.min + newIndex;
-      _offset.value = 0.0;
-      _isUserScrolling = false;
-      if (newValue != widget.value) {
-        widget.onValueChanged?.call(newValue);
-      }
-    });
+          } else {
+            newIndex = (_currentIndex + offsetInt).clamp(0, _itemCount - 1);
+          }
+          final newValue = widget.min + newIndex;
+          _offset.value = 0.0;
+          _isUserScrolling = false;
+          if (newValue != widget.value) {
+            widget.onValueChanged?.call(newValue);
+          }
+        });
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors =
-        widget.colors ?? MiuixNumberPickerDefaults.colors(context);
+    final colors = widget.colors ?? MiuixNumberPickerDefaults.colors(context);
     final theme = MiuixTheme.of(context);
     final baseStyle = widget.textStyle ?? theme.textStyles.title1;
     final textStyle = baseStyle.copyWith(fontWeight: FontWeight.w600);
@@ -233,15 +232,14 @@ class _MiuixNumberPickerState extends State<MiuixNumberPicker>
             animation: _offset,
             builder: (context, _) {
               final totalOffset = _offset.value;
-              final centerItemOffset = totalOffset - totalOffset.roundToDouble();
+              final centerItemOffset =
+                  totalOffset - totalOffset.roundToDouble();
               final roundedOffset = totalOffset.round();
 
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  for (int i = -_halfVisible - 1;
-                      i <= _halfVisible + 1;
-                      i++)
+                  for (int i = -_halfVisible - 1; i <= _halfVisible + 1; i++)
                     _buildItem(
                       i: i,
                       currentIndex: _currentIndex,
@@ -272,8 +270,7 @@ class _MiuixNumberPickerState extends State<MiuixNumberPicker>
     final rawItemIndex = currentIndex + i + roundedOffset;
     int itemIndex;
     if (widget.wrapAround) {
-      itemIndex =
-          ((rawItemIndex % _itemCount) + _itemCount) % _itemCount;
+      itemIndex = ((rawItemIndex % _itemCount) + _itemCount) % _itemCount;
     } else {
       if (rawItemIndex < 0 || rawItemIndex >= _itemCount) {
         return const SizedBox.shrink();
@@ -282,15 +279,18 @@ class _MiuixNumberPickerState extends State<MiuixNumberPicker>
     }
 
     final distanceFromCenter = i.toDouble() - centerItemOffset;
-    final normalizedDistance =
-        (distanceFromCenter.abs() / (_halfVisible + 0.5)).clamp(0.0, 1.0);
+    final normalizedDistance = (distanceFromCenter.abs() / (_halfVisible + 0.5))
+        .clamp(0.0, 1.0);
 
     final alpha = (1.0 - normalizedDistance) * (1.0 - normalizedDistance * 0.5);
     final scale = 1.0 - 0.2 * normalizedDistance;
     final yOffset = distanceFromCenter * widget.itemHeight;
 
     final textColor = Color.lerp(
-        selectedColor, unselectedColor, normalizedDistance)!;
+      selectedColor,
+      unselectedColor,
+      normalizedDistance,
+    )!;
 
     return Transform.translate(
       offset: Offset(0, yOffset),

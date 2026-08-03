@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../foundation/miuix_content_color.dart';
 import '../foundation/miuix_squircle.dart';
+import '../theme/miuix_text_styles.dart';
 import '../theme/miuix_theme.dart';
 
 /// Tooltip 相对锚点的首选方位；空间不足时会翻转到相反一侧。
@@ -52,14 +53,18 @@ class MiuixTooltipDefaults {
   static const Size caretSize = Size(16, 8);
   static const double plainTooltipMaxWidth = 200;
   static const double plainTooltipCornerRadius = 12;
-  static const EdgeInsets plainTooltipInsideMargin =
-      EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+  static const EdgeInsets plainTooltipInsideMargin = EdgeInsets.symmetric(
+    horizontal: 12,
+    vertical: 8,
+  );
   static const double richTooltipMaxWidth = 320;
   static const double richTooltipCornerRadius = 16;
   static const EdgeInsets richTooltipInsideMargin = EdgeInsets.all(16);
   static const double richTooltipActionCornerRadius = 8;
-  static const EdgeInsets richTooltipActionInsideMargin =
-      EdgeInsets.symmetric(horizontal: 12, vertical: 6);
+  static const EdgeInsets richTooltipActionInsideMargin = EdgeInsets.symmetric(
+    horizontal: 12,
+    vertical: 6,
+  );
   static const Duration tooltipDuration = Duration(milliseconds: 1500);
   static const Duration animationDuration = Duration(milliseconds: 180);
 
@@ -86,10 +91,8 @@ class MiuixTooltipDefaults {
 /// 所有实例共享一个活动槽，因此同一时刻至多显示一个 Tooltip。非持久状态在
 /// [MiuixTooltipDefaults.tooltipDuration] 后自动关闭。
 class MiuixTooltipState extends ChangeNotifier {
-  MiuixTooltipState({
-    this.initialIsVisible = false,
-    this.isPersistent = false,
-  }) : _isVisible = initialIsVisible;
+  MiuixTooltipState({this.initialIsVisible = false, this.isPersistent = false})
+    : _isVisible = initialIsVisible;
 
   static MiuixTooltipState? _active;
 
@@ -291,16 +294,17 @@ class _MiuixTooltipBoxState extends State<MiuixTooltipBox>
                         liveRegion: true,
                         container: true,
                         label: '提示',
-                        child: ValueListenableBuilder<MiuixTooltipAnchorPosition>(
-                          valueListenable: actualPosition,
-                          builder: (context, position, _) => widget.tooltip(
-                            context,
-                            MiuixTooltipScope(
-                              positioning: position,
-                              anchorBounds: anchor,
+                        child:
+                            ValueListenableBuilder<MiuixTooltipAnchorPosition>(
+                              valueListenable: actualPosition,
+                              builder: (context, position, _) => widget.tooltip(
+                                context,
+                                MiuixTooltipScope(
+                                  positioning: position,
+                                  anchorBounds: anchor,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -402,7 +406,8 @@ class MiuixPlainTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final container = containerColor ??
+    final container =
+        containerColor ??
         MiuixTooltipDefaults.plainTooltipContainerColor(context);
     final content =
         contentColor ?? MiuixTooltipDefaults.plainTooltipContentColor(context);
@@ -419,7 +424,9 @@ class MiuixPlainTooltip extends StatelessWidget {
         child: MiuixContentColor(
           color: content,
           child: DefaultTextStyle.merge(
-            style: MiuixTheme.of(context).textStyles.body2.copyWith(color: content),
+            style: MiuixTheme.of(context).textStyles.body2
+                .copyWith(color: content)
+                .withMiuixWeight(MiuixTheme.of(context).fontWeightAdjustment),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             child: child,
@@ -475,10 +482,11 @@ class MiuixRichTooltip extends StatelessWidget {
               MiuixContentColor(
                 color: palette.titleContentColor,
                 child: DefaultTextStyle.merge(
-                  style: MiuixTheme.of(context)
-                      .textStyles
-                      .subtitle
-                      .copyWith(color: palette.titleContentColor),
+                  style: MiuixTheme.of(context).textStyles.subtitle
+                      .copyWith(color: palette.titleContentColor)
+                      .withMiuixWeight(
+                        MiuixTheme.of(context).fontWeightAdjustment,
+                      ),
                   child: title!,
                 ),
               ),
@@ -487,10 +495,11 @@ class MiuixRichTooltip extends StatelessWidget {
             MiuixContentColor(
               color: palette.contentColor,
               child: DefaultTextStyle.merge(
-                style: MiuixTheme.of(context)
-                    .textStyles
-                    .body2
-                    .copyWith(color: palette.contentColor),
+                style: MiuixTheme.of(context).textStyles.body2
+                    .copyWith(color: palette.contentColor)
+                    .withMiuixWeight(
+                      MiuixTheme.of(context).fontWeightAdjustment,
+                    ),
                 child: text,
               ),
             ),
@@ -501,7 +510,10 @@ class MiuixRichTooltip extends StatelessWidget {
                 child: MiuixContentColor(
                   color: palette.actionContentColor,
                   child: DefaultTextStyle.merge(
-                    style: TextStyle(color: palette.actionContentColor),
+                    style: TextStyle(color: palette.actionContentColor)
+                        .withMiuixWeight(
+                          MiuixTheme.of(context).fontWeightAdjustment,
+                        ),
                     child: action!,
                   ),
                 ),
@@ -577,7 +589,8 @@ class _MiuixRichTooltipBoxState extends State<MiuixRichTooltipBox> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = widget.colors ?? MiuixTooltipDefaults.richTooltipColors(context);
+    final palette =
+        widget.colors ?? MiuixTooltipDefaults.richTooltipColors(context);
     return MiuixTooltipBox(
       state: _state,
       positioning: widget.positioning,
@@ -634,7 +647,8 @@ class _MiuixTooltipSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vertical = scope.positioning == MiuixTooltipAnchorPosition.above ||
+    final vertical =
+        scope.positioning == MiuixTooltipAnchorPosition.above ||
         scope.positioning == MiuixTooltipAnchorPosition.below;
     final caret = showCaret && vertical;
     final caretOnTop = scope.positioning == MiuixTooltipAnchorPosition.below;
@@ -736,8 +750,8 @@ class _MiuixTooltipPositionDelegate extends SingleChildLayoutDelegate {
   Offset getPositionForChild(Size size, Size childSize) {
     final resolved = _resolvePosition(preferred, textDirection);
     final opposite = _opposite(resolved);
-    final selected = _fits(resolved, size, childSize) ||
-            !_fits(opposite, size, childSize)
+    final selected =
+        _fits(resolved, size, childSize) || !_fits(opposite, size, childSize)
         ? resolved
         : opposite;
     if (actualPosition.value != selected) {
@@ -769,15 +783,14 @@ class _MiuixTooltipPositionDelegate extends SingleChildLayoutDelegate {
 
   bool _fits(MiuixTooltipAnchorPosition side, Size area, Size child) {
     return switch (side) {
-      MiuixTooltipAnchorPosition.above =>
-        anchor.top - spacing >= child.height,
+      MiuixTooltipAnchorPosition.above => anchor.top - spacing >= child.height,
       MiuixTooltipAnchorPosition.below =>
         area.height - anchor.bottom - spacing >= child.height,
-      MiuixTooltipAnchorPosition.left =>
-        anchor.left - spacing >= child.width,
+      MiuixTooltipAnchorPosition.left => anchor.left - spacing >= child.width,
       MiuixTooltipAnchorPosition.right =>
         area.width - anchor.right - spacing >= child.width,
-      MiuixTooltipAnchorPosition.start || MiuixTooltipAnchorPosition.end => false,
+      MiuixTooltipAnchorPosition.start ||
+      MiuixTooltipAnchorPosition.end => false,
     };
   }
 

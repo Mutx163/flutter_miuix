@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../foundation/miuix_squircle.dart';
+import '../theme/miuix_text_styles.dart';
 import '../theme/miuix_theme.dart';
 
 /// TextField 颜色配置。对应 Kotlin `TextFieldColors`。
@@ -233,7 +234,9 @@ class _MiuixTextFieldState extends State<MiuixTextField>
         widget.colors ?? MiuixTextFieldDefaults.textFieldColors(context);
     final theme = MiuixTheme.of(context);
     final baseStyle = widget.textStyle ?? theme.textStyles.main;
-    final textStyle = baseStyle.copyWith(color: theme.colors.onBackground);
+    final textStyle = baseStyle
+        .copyWith(color: theme.colors.onBackground)
+        .withMiuixWeight(theme.fontWeightAdjustment);
     final cursorColor = widget.cursorColor ?? colors.borderColor;
 
     return AnimatedBuilder(
@@ -243,7 +246,10 @@ class _MiuixTextFieldState extends State<MiuixTextField>
         final borderProgress = _borderController.value;
         final borderWidth = borderProgress * MiuixTextFieldDefaults.borderWidth;
         final borderColor = Color.lerp(
-                colors.backgroundColor, colors.borderColor, borderProgress)!;
+          colors.backgroundColor,
+          colors.borderColor,
+          borderProgress,
+        )!;
 
         return GestureDetector(
           // 整块区域可点击聚焦（对应 Compose 版整个输入框可点）：背景、内边距、
@@ -256,50 +262,51 @@ class _MiuixTextFieldState extends State<MiuixTextField>
                 }
               : null,
           child: DecoratedBox(
-          decoration: ShapeDecoration(
-            color: colors.backgroundColor,
-            shape: MiuixSquircleBorder(
-              cornerRadius: widget.cornerRadius,
-              side: borderWidth > 0
-                  ? BorderSide(color: borderColor, width: borderWidth)
-                  : BorderSide.none,
+            decoration: ShapeDecoration(
+              color: colors.backgroundColor,
+              shape: MiuixSquircleBorder(
+                cornerRadius: widget.cornerRadius,
+                side: borderWidth > 0
+                    ? BorderSide(color: borderColor, width: borderWidth)
+                    : BorderSide.none,
+              ),
             ),
-          ),
-          child: Padding(
-            // insideMargin 语义为“每侧”边距（对应 Kotlin DpSize.height/width，
-            // 均为单侧值 16）。故取 .top/.bottom 单侧值，不能用 .vertical
-            // （=top+bottom=32），否则上下各 padding 32 → 高度翻倍。
-            padding: EdgeInsets.only(
-              top: widget.insideMargin.top,
-              bottom: widget.insideMargin.bottom,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (widget.leadingIcon != null) widget.leadingIcon!,
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      // 单侧值：用 .left/.right，不能用 .horizontal（=left+right）。
-                      left: widget.leadingIcon != null
-                          ? 0
-                          : widget.insideMargin.left,
-                      right: widget.trailingIcon != null
-                          ? 0
-                          : widget.insideMargin.right,
-                    ),
-                    child: _buildTextArea(
-                      textStyle: textStyle,
-                      cursorColor: cursorColor,
-                      labelColor: colors.labelColor,
-                      labelProgress: labelProgress,
+            child: Padding(
+              // insideMargin 语义为“每侧”边距（对应 Kotlin DpSize.height/width，
+              // 均为单侧值 16）。故取 .top/.bottom 单侧值，不能用 .vertical
+              // （=top+bottom=32），否则上下各 padding 32 → 高度翻倍。
+              padding: EdgeInsets.only(
+                top: widget.insideMargin.top,
+                bottom: widget.insideMargin.bottom,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (widget.leadingIcon != null) widget.leadingIcon!,
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        // 单侧值：用 .left/.right，不能用 .horizontal（=left+right）。
+                        left: widget.leadingIcon != null
+                            ? 0
+                            : widget.insideMargin.left,
+                        right: widget.trailingIcon != null
+                            ? 0
+                            : widget.insideMargin.right,
+                      ),
+                      child: _buildTextArea(
+                        textStyle: textStyle,
+                        cursorColor: cursorColor,
+                        labelColor: colors.labelColor,
+                        labelProgress: labelProgress,
+                        fontWeightAdjustment: theme.fontWeightAdjustment,
+                      ),
                     ),
                   ),
-                ),
-                if (widget.trailingIcon != null) widget.trailingIcon!,
-              ],
+                  if (widget.trailingIcon != null) widget.trailingIcon!,
+                ],
+              ),
             ),
-          ),
           ),
         );
       },
@@ -311,6 +318,7 @@ class _MiuixTextFieldState extends State<MiuixTextField>
     required Color cursorColor,
     required Color labelColor,
     required double labelProgress,
+    required int fontWeightAdjustment,
   }) {
     // 对应 Kotlin insideMargin.height / 2（单侧值的一半 = 8）。
     final floatOffset = widget.insideMargin.top / 2 * labelProgress;
@@ -368,7 +376,7 @@ class _MiuixTextFieldState extends State<MiuixTextField>
                   fontSize: labelFontSize,
                   color: labelColor,
                   fontWeight: FontWeight.w500,
-                ),
+                ).withMiuixWeight(fontWeightAdjustment),
               ),
             ),
           ),

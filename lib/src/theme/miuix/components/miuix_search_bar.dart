@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../foundation/miuix_content_color.dart';
 import '../icon/miuix_basic_icons.dart';
+import '../theme/miuix_text_styles.dart';
 import '../theme/miuix_theme.dart';
 import 'miuix_icon.dart';
 
@@ -140,6 +141,7 @@ class MiuixInputField extends StatefulWidget {
 
 class _MiuixInputFieldState extends State<MiuixInputField>
     with SingleTickerProviderStateMixin {
+  late final TextEditingController _controller;
   late FocusNode _focusNode;
   late final AnimationController _textAlpha;
   Timer? _collapseTimer;
@@ -147,6 +149,7 @@ class _MiuixInputFieldState extends State<MiuixInputField>
   @override
   void initState() {
     super.initState();
+    _controller = TextEditingController(text: widget.query);
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_onFocusChanged);
     _textAlpha = AnimationController(
@@ -169,6 +172,12 @@ class _MiuixInputFieldState extends State<MiuixInputField>
       if (oldWidget.focusNode == null) _focusNode.dispose();
       _focusNode = widget.focusNode ?? FocusNode();
       _focusNode.addListener(_onFocusChanged);
+    }
+    if (widget.query != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.query,
+        selection: TextSelection.collapsed(offset: widget.query.length),
+      );
     }
     if (oldWidget.expanded != widget.expanded) {
       _collapseTimer?.cancel();
@@ -200,6 +209,7 @@ class _MiuixInputFieldState extends State<MiuixInputField>
   @override
   void dispose() {
     _collapseTimer?.cancel();
+    _controller.dispose();
     _focusNode.removeListener(_onFocusChanged);
     if (widget.focusNode == null) _focusNode.dispose();
     _textAlpha.dispose();
@@ -213,14 +223,16 @@ class _MiuixInputFieldState extends State<MiuixInputField>
     final inputStyle = theme.textStyles.main
         .copyWith(fontWeight: FontWeight.w500)
         .merge(widget.textStyle)
-        .copyWith(color: foreground);
+        .copyWith(color: foreground)
+        .withMiuixWeight(theme.fontWeightAdjustment);
     final labelStyle =
         const TextStyle(
               fontSize: MiuixSearchBarDefaults.inputFieldFontSize,
               fontWeight: FontWeight.w500,
             )
             .merge(widget.textStyle)
-            .copyWith(color: theme.colors.onSurfaceContainerHigh);
+            .copyWith(color: theme.colors.onSurfaceContainerHigh)
+            .withMiuixWeight(theme.fontWeightAdjustment);
     final showLabel = widget.query.isEmpty && !widget.expanded;
 
     final leading =
@@ -284,7 +296,7 @@ class _MiuixInputFieldState extends State<MiuixInputField>
                     FadeTransition(
                       opacity: _textAlpha,
                       child: TextField(
-                        controller: _EphemeralTextController(widget.query),
+                        controller: _controller,
                         focusNode: _focusNode,
                         enabled: widget.enabled,
                         maxLines: 1,
@@ -319,14 +331,4 @@ class _MiuixInputFieldState extends State<MiuixInputField>
       ),
     );
   }
-}
-
-class _EphemeralTextController extends TextEditingController {
-  _EphemeralTextController(String text)
-    : super.fromValue(
-        TextEditingValue(
-          text: text,
-          selection: TextSelection.collapsed(offset: text.length),
-        ),
-      );
 }
