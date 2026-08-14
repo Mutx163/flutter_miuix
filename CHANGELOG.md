@@ -2,6 +2,17 @@
 
 
 
+## 1.1.1
+
+### 修复
+
+- **下拉刷新回弹被中断时内部锁泄漏**：松手触发刷新后的弹簧回弹（`_animateSpringTo`）未完成时再次下拉会取消回弹，此时 `_isRefreshingInternally` 内部锁未释放，导致此后所有松手都被提前拦截、指示器永远卡在拉长状态不再回弹也不再刷新。现于回弹被取消（`!settled`）时显式释放锁。新增回归测试 `test/pull_to_refresh_interrupt_test.dart`。
+- **pubspec.yaml 中文注释在中文 Windows 下导致 YAML 解析失败**：`pub` 在中文 Windows（系统代码页 936）把 `git show` 输出按 GBK 解码，中文注释字节被破坏、全角标点吞掉其后换行，把 `shaders:` 并进注释行，YAML 解析器报 "Expected a key while parsing a block mapping"。现将 `pubspec.yaml` 内注释统一改为 ASCII。
+
+### 依赖
+
+- `dynamic_color` ^1.8.1 → ^1.9.0。
+
 ## 1.1.0
 
 ### 新增
