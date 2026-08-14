@@ -176,6 +176,12 @@ Detailed API documentation also lives in-repo at [`doc/.api_frag/`](doc/.api_fra
 - [compose-miuix-ui/miuix](https://github.com/compose-miuix-ui/miuix) — The original miuix project (Compose Multiplatform implementation); all design, motion, and interaction logic derives from it
 - [materialkolor](https://github.com/jordond/materialkolor) — Kotlin Material dynamic color library; `miuixColorsFromSeed` in this package is equivalent to its core flow
 
+## Community
+
+Join the discussion and get support:
+
+- [linux.do](https://linux.do) — community discussions and support for `flutter_miuix`
+
 ## License
 
 ```

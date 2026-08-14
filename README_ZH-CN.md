@@ -176,6 +176,12 @@ class HomePage extends StatelessWidget {
 - [compose-miuix-ui/miuix](https://github.com/compose-miuix-ui/miuix) — 原版 miuix 项目（Compose Multiplatform 实现），本库的所有设计、动效与交互逻辑均源自该项目
 - [materialkolor](https://github.com/jordond/materialkolor) — Kotlin 端的 Material 动态配色库，本库的 `miuixColorsFromSeed` 等价于其核心流程
 
+## 社区
+
+加入社区，一起交流与获取支持：
+
+- [linux.do](https://linux.do) — `flutter_miuix` 社区交流与支持
+
 ## License
 
 ```
