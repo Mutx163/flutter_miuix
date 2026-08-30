@@ -240,7 +240,14 @@ class _MiuixTextFieldState extends State<MiuixTextField>
     final cursorColor = widget.cursorColor ?? colors.borderColor;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_labelController, _borderController]),
+      // 必须监听 controller：useLabelAsPlaceholder 模式下标签显隐只随文字变化
+      // （normal↔placeholder 不经过悬浮动画，_onTextChanged 无动画 tick），
+      // 不监听则输入首个字后提示语覆盖层残留、与正文叠加，删光后提示语不回。
+      animation: Listenable.merge([
+        _labelController,
+        _borderController,
+        _controller,
+      ]),
       builder: (context, _) {
         final labelProgress = _labelController.value;
         final borderProgress = _borderController.value;
