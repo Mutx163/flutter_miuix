@@ -1,5 +1,7 @@
 ## 图标 Icons
 
+新增 OS4 符号库使用独立的 `MiuixIcons.os4`，176 个名称 × 5 字重；不替换 basic / extended。OS4 组件与材质选型见 [110_os4](110_os4.zh.md)。
+
 本章涵盖 flutter_miuix 的图标系统：[MiuixIcon]（统一渲染入口）、[MiuixIcons]（图标集合入口）、[MiuixBasicIcons]（7 个基础矢量图标）、[MiuixExtendedIcons]（120+ 扩展图标 × 5 种字重）。
 
 底层矢量数据模型（[MiuixVectorIcon] / [MiuixVectorPath] / `miuixParsePath`）见「基础设施」章节。
@@ -68,6 +70,27 @@ Miuix 内置图标集合入口。`MiuixIcons._()` 私有构造，仅暴露 `stat
 |---|---|---|
 | `basic` | `MiuixBasicIcons` | 组件内部使用的基础矢量图标 |
 | `extended` | `MiuixExtendedIcons` | 扩展图标 120+ × 5 字重 |
+| `os4` | `MiuixOs4Icons` | OS4 符号库，176 个 × 5 字重；需支持 OS4 的依赖版本 |
+
+### MiuixOs4Icons
+
+通过 `MiuixIcons.os4` 使用；共 176 个图标，每个提供已有 `MiuixIconWeight` 的
+`light / normal / regular / medium / demibold` 五种字重，默认 regular。不另建 OS4 字重枚举。
+
+| 成员 | 返回类型 | 用法 |
+|---|---|---|
+| `byName(String name, [MiuixIconWeight weight = MiuixIconWeight.regular])` | `MiuixVectorIcon?` | 小驼峰名；缺失返回 null，先核对 names，不从 extended 的名称推定存在 |
+| `names` | `List<String>` | 可用名称的只读列表，无需把全部图标名加载进上下文 |
+| `search` / `settings` / `create` / `image` / `chevronBackward` 等 | `MiuixVectorIcon` | 同名图标的 regular 字重 getter |
+
+~~~dart
+MiuixIcon(vector: MiuixIcons.os4.search);
+MiuixIcon(vector: MiuixIcons.os4.byName('settings', MiuixIconWeight.medium)!);
+MiuixIcon(vector: MiuixIcons.os4.chevronBackward, contentDescription: '返回');
+~~~
+
+方向图标保留 `MiuixVectorIcon.autoMirror`，`MiuixIcon` 按 Directionality 自动处理 RTL；不要再手动翻转一次。
+导航项和菜单项的 `icon` 参数接收 Widget，所以传 `MiuixIcon(vector: ...)`，不能直接塞入矢量数据。
 
 ### MiuixBasicIcons
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0
+
+### 新增
+
+- **HyperOS 4 玻璃材质与组件（可选，不改动既有组件默认表现）**：移植上游 `feat/miuix-glass` 分支 `3f7debbf`（2026-09-06），新增一整套 `MiuixGlass*` 组件与玻璃材质基础设施，与旧组件并存。导入 `package:flutter_miuix/miuix.dart` 后按需使用，无需更换主题，原有界面样式零变化。
+  - 组件：`MiuixBlurTopAppBar`、`MiuixGlassTopAppBar`、`MiuixGlassIconButton`、`MiuixGlassNavigationBar`、`MiuixGlassTabRow`、`MiuixGlassSegmentedTabRow`、`MiuixGlassPopup` / `MiuixGlassPopupItem`、`MiuixGlassTransformPopup`、`MiuixGlassSecondaryPopup`、`MiuixGlassDropdownPopup`、`MiuixGlassDialog`，以及 `MiuixGlass` / `MiuixGlassPanel` / `miuixGlassSurface` 三种材质包装方式。
+  - 材质与动效：35 组玻璃样式预设（`MiuixGlassStyles`）、材质混合层、6 个运行时片元着色器（`miuix_os4_glass/mask/stroke/shadow/rim/blend.frag`）、可逆弹窗变形动效、导航栏拖拽切换。
+  - 图标：`MiuixIcons.os4` 新增 176 枚 OS4 符号，覆盖 5 档字重，含 RTL 镜像处理。
+- **旧版级联菜单支持玻璃表面**：`MiuixCascadingDropdownMenu` / `MiuixCascadingListPopup` 等新增可选的玻璃表面构建器，老接口可渐进接入 OS4 观感。
+- **OS4 示例页**：example 新增独立 OS4 展示页，内置图标搜索。
+- **文档**：新增中英双语 API 参考章节 `110_os4.{zh,en}.md`（同步至 AI Skill 包 references）。
+
+### 测试
+
+- 新增交互、生命周期、几何、兼容性与像素级渲染测试（`test/os4_glass*.dart`）。
+
+### 其他
+
+- README 中英文版新增免责声明章节（本项目与小米公司无从属关系）。
+
 
 
 ## 1.1.1

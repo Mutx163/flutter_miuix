@@ -56,7 +56,9 @@ class _RenderLayerBackdropCapture extends RenderProxyBox {
   MiuixLayerBackdrop get backdrop => _backdrop;
   set backdrop(MiuixLayerBackdrop value) {
     if (identical(_backdrop, value)) return;
+    _backdrop.unregisterCapture(this);
     _backdrop = value;
+    if (attached) _backdrop.registerCapture(this);
     markNeedsPaint();
   }
 
@@ -72,6 +74,20 @@ class _RenderLayerBackdropCapture extends RenderProxyBox {
   // 做 toImageSync 快照，避免重录子树导致的图层重入问题。
   @override
   bool get isRepaintBoundary => true;
+
+  // 登记自身，让 backdrop 在被采样时能实时取本节点的全局坐标——本节点是重绘边界，
+  // 位置变化不会触发 paint，录制时记下的坐标会过期。
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _backdrop.registerCapture(this);
+  }
+
+  @override
+  void detach() {
+    _backdrop.unregisterCapture(this);
+    super.detach();
+  }
 
   @override
   void paint(PaintingContext context, Offset offset) {

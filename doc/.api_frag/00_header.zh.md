@@ -1,11 +1,17 @@
 # flutter_miuix API 文档
 
-> 本文档为 **flutter_miuix** 组件库的完整 API 参考（中文版）。英文版见 [`API.en.md`](API.en.md)。
+> 本文档为 **flutter_miuix** 组件库的完整 API 参考（中文版）。英文版见 [总览英文版](00_header.en.md)。
 
 flutter_miuix 是移植自 [miuix](https://github.com/compose-miuix-ui/miuix) 的 Flutter 组件库，提供小米 HyperOS / MIUI 风格的完整组件集：Squircle 圆角、动态取色（Monet）、液态玻璃模糊等。
 
 - 所有组件的**尺寸、圆角、内边距等均可通过构造参数自定义**，且都带有与原版一致的默认值。
 - 颜色走 `MiuixColors` 语义角色，文本走 `MiuixTextStyles` 预设，随主题自动明暗切换。
+
+## HyperOS 4 / OS4（可选）
+
+新的 `MiuixGlass*` 组件、材质与 `MiuixIcons.os4` 见 [OS4 使用指南](110_os4.zh.md)。
+原组件默认样式保持不变；下面的普通安装示例不保证解析到含 OS4 的版本。
+需要 OS4 时先核对 `pubspec.lock` 与实际依赖的 `lib/miuix.dart` 导出，不要凭 skill 的更新推断包已发布。
 
 ## 安装
 

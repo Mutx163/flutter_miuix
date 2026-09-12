@@ -9,6 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/scheduler.dart';
 
+/// 对应上游 surface：仅替换面板材质，保留内容与交互。
+typedef MiuixPopupSurfaceBuilder = Widget Function(
+  BuildContext context, ShapeBorder shape, Widget child,
+);
+
 /// 弹窗内容过渡的构建器。
 typedef MiuixPopupTransitionBuilder = Widget Function(
   BuildContext context,

@@ -1,5 +1,7 @@
 ## 导航与脚手架 Navigation & Scaffold
 
+本章记录原导航 API。独立的 `MiuixGlassTopAppBar`、两类 Glass 标签栏与悬浮导航的参数和完整接线见 [OS4](110_os4.zh.md)；不要把原 `children` 导航 API 套给 Glass。
+
 ### MiuixScaffold
 
 Miuix 风格脚手架，编排顶栏、底栏、悬浮按钮、悬浮工具栏、Snackbar 与弹窗层；`content` 会收到脚手架计算出的内边距，由内容自行应用。
@@ -93,6 +95,9 @@ typedef MiuixScaffoldContentBuilder = Widget Function(EdgeInsets contentPadding)
 | blurred | bool | false | 是否启用毛玻璃背景（增强，非原版行为）。true 时背景变为对**身后已绘制内容**的实时高斯模糊 + 半透明色调，实现"内容透过顶栏虚化"。用 `BackdropFilter` 实现，需顶栏画在可滚动内容之上（MiuixScaffold 的 topBar 即是） |
 | blurRadius | double | 24 | 毛玻璃模糊半径（dp），仅 blurred=true 时生效；sigma = blurRadius × 0.45 |
 | blurTintAlpha | double | 0.55 | 毛玻璃上叠加的背景色调不透明度 [0,1]，仅 blurred=true 时生效。太高盖住模糊、太低对比不足 |
+| largeTitleBlurRadius | double | 0 | OS4 大标题折叠模糊；0 保留原行为，区别于背景 blurRadius |
+| titleAlpha | double | 1 | 大、小标题及副标题统一透明度，范围 0..1，不是函数 |
+| clipBehavior | Clip | Clip.hardEdge | 栏位裁切；Glass 顶栏使用 Clip.none 容纳按钮阴影，大标题仍单独裁切 |
 
 **示例：**
 ```dart
@@ -101,7 +106,7 @@ MiuixTopAppBar(
   title: 'Title',
   subtitle: 'Subtitle',
   scrollBehavior: behavior,
-  navigationIcon: MiuixIcon(vector: MiuixIcons.basic.back),
+  navigationIcon: const Icon(Icons.arrow_back),
 );
 
 // 毛玻璃顶栏（内容透过顶栏虚化）
@@ -110,6 +115,11 @@ MiuixScaffold(
   content: (padding) => ListView(padding: padding, children: [/* ... */]),
 );
 ```
+
+### MiuixBlurTopAppBar
+
+保留原顶栏参数，默认 `largeTitleBlurRadius: 12`，大标题折叠时模糊消散；不自动提供玻璃按钮或材质。
+仅需此效果时用它，完整 OS4 栏位用 `MiuixGlassTopAppBar`。参数差异与示例见 [OS4](110_os4.zh.md)。
 
 ### MiuixSmallTopAppBar
 

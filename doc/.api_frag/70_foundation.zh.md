@@ -451,6 +451,7 @@ MiuixScrollEndHaptic(
 | `viewport` | `Size` | 路径坐标所在的视口尺寸（`viewportWidth/Height`） |
 | `intrinsicSize` | `Size` | 默认渲染尺寸（`defaultWidth/Height`，逻辑像素）；当 [MiuixIcon] 未显式指定 size 时按此渲染 |
 | `paths` | `List<MiuixVectorPath>` | 组成该图标的所有路径（按绘制顺序） |
+| `autoMirror` | `bool` | 默认 false；方向性 OS4 图标为 true，MiuixIcon 在 RTL 中自动镜像 |
 
 #### MiuixVectorIconPainter
 
@@ -460,6 +461,7 @@ MiuixScrollEndHaptic(
 |---|---|---|
 | `icon` | `MiuixVectorIcon` | 矢量图标 |
 | `tint` | `Color?` | 上色色；非空时以 `ColorFilter.mode(tint, BlendMode.srcIn)` 对整幅矢量上色；为空时按矢量原始颜色绘制（多色/不上色场景） |
+| `textDirection` | `TextDirection` | 默认 TextDirection.ltr；自行使用 painter 绘制 autoMirror 图标时传当前方向 |
 
 #### `miuixEvenOddPath()` → `Path`
 

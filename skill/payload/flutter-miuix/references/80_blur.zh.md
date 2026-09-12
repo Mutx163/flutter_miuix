@@ -1,5 +1,7 @@
 ## 液态玻璃与模糊 Liquid Glass & Blur
 
+**OS4 是独立材质层**：`MiuixGlass` / `MiuixGlassPanel`、35 组 GlassStyles、材质混色和 Glass 组件见 [110_os4](110_os4.zh.md)。本章的 TextureBlur / Highlight 是可复用的原基础，不等于完整 OS4 渲染。
+
 本章涵盖 flutter_miuix 的液态玻璃效果实现：背景捕获（[MiuixBackdrop] / [MiuixLayerBackdrop] / [MiuixLayerBackdropCapture]）、纹理模糊（[MiuixTextureBlur]）、Bloom 高光边框（[MiuixHighlight] / [BloomStroke] / [LightSource]）以及模糊默认值（[MiuixBlurDefaults] / [BlurColors] / [BlurBlendMode]）。
 
 [MiuixTextureBlur] 的高斯模糊交给 Skia/Impeller 的 `ui.ImageFilter.blur`（内部为可分离两趟 + 逐级降采样，无颗粒），sigma 取原版 `BLUR_RADIUS_TO_SIGMA=0.45`；颜色控制（亮度/对比度/饱和度）用等价的 `ColorFilter.matrix`。[MiuixHighlight] 的 bloom 边框仍基于预编译着色器 `shaders/miuix_bloom_stroke.frag`。

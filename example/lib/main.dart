@@ -13,6 +13,7 @@ import 'showcase/utility.dart';
 import 'showcase/theming.dart';
 import 'showcase/foundation.dart';
 import 'showcase/blur.dart';
+import 'showcase/os4.dart';
 import 'showcase/navigation.dart';
 import 'showcase/preferences.dart';
 
@@ -93,6 +94,13 @@ class _HomePageState extends State<_HomePage>
 
   // 所有组件入口（缓存，不在 build 中重复构建）
   late final List<_DemoEntry> _allEntries = [
+    _DemoEntry(
+      icon: 'gridView',
+      title: 'HyperOS 4 · Glass',
+      summary: 'OS4 顶栏 / 标签 / 悬浮导航 / 变形菜单 / 玻璃材质',
+      page: const Os4Showcase(),
+      keywords: ['OS4', 'HyperOS', 'glass', '玻璃', '新样式'],
+    ),
     _DemoEntry(
       icon: 'create',
       title: '按钮 Button',

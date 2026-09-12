@@ -1,5 +1,7 @@
 ## Navigation & Scaffold
 
+This chapter documents the original navigation API. See [OS4](110_os4.en.md) for the independent Glass top bar, tab rows and navigation, including a complete wiring example. Glass navigation takes `items`, not the original `children` API.
+
 ### MiuixScaffold
 
 Miuix-style scaffold that arranges the top bar, bottom bar, floating action button, floating toolbar, snackbar, and popup layers; `content` receives the padding computed by the scaffold and applies it itself.
@@ -93,6 +95,9 @@ Collapsible large-title top app bar. Requires a MiuixScrollBehavior to collapse/
 | blurred | bool | false | Enable frosted-glass background (enhancement, not in the original). When true, the background becomes a real-time Gaussian blur of the **already-painted content behind it** plus a translucent tint ("content blurs through the bar"). Implemented with `BackdropFilter`; requires the bar to paint above the scrollable content (MiuixScaffold's topBar does). |
 | blurRadius | double | 24 | Frosted-glass blur radius (dp), only when blurred=true; sigma = blurRadius × 0.45 |
 | blurTintAlpha | double | 0.55 | Opacity [0,1] of the background tint over the blur, only when blurred=true. Too high hides the blur, too low lacks contrast |
+| largeTitleBlurRadius | double | 0 | OS4 large-title collapse blur; 0 retains original behavior, distinct from background blurRadius |
+| titleAlpha | double | 1 | Shared opacity for both titles/subtitles, 0..1; not a callback |
+| clipBehavior | Clip | Clip.hardEdge | Bar clipping; the Glass top bar uses Clip.none for button shadows while retaining separate title clipping |
 
 **Example:**
 ```dart
@@ -101,7 +106,7 @@ MiuixTopAppBar(
   title: 'Title',
   subtitle: 'Subtitle',
   scrollBehavior: behavior,
-  navigationIcon: MiuixIcon(vector: MiuixIcons.basic.back),
+  navigationIcon: const Icon(Icons.arrow_back),
 );
 
 // Frosted-glass bar (content blurs through)
@@ -110,6 +115,10 @@ MiuixScaffold(
   content: (padding) => ListView(padding: padding, children: [/* ... */]),
 );
 ```
+
+### MiuixBlurTopAppBar
+
+Keeps the original top-bar parameters with `largeTitleBlurRadius: 12` by default. It blurs the large title during collapse, but does not add glass buttons/materials. Use `MiuixGlassTopAppBar` for the full OS4 bar. See [OS4](110_os4.en.md) for details.
 
 ### MiuixSmallTopAppBar
 

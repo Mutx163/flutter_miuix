@@ -1,5 +1,7 @@
 ## Liquid Glass & Blur
 
+**OS4 is a separate material layer**: see [110_os4](110_os4.en.md) for MiuixGlass / MiuixGlassPanel, 35 style presets, material blending and Glass widgets. The TextureBlur / Highlight APIs below are the original reusable primitives, not the full OS4 renderer.
+
 This chapter covers flutter_miuix's liquid-glass effects: backdrop capture ([MiuixBackdrop] / [MiuixLayerBackdrop] / [MiuixLayerBackdropCapture]), texture blur ([MiuixTextureBlur]), bloom highlight border ([MiuixHighlight] / [BloomStroke] / [LightSource]), and blur defaults ([MiuixBlurDefaults] / [BlurColors] / [BlurBlendMode]).
 
 [MiuixTextureBlur]'s Gaussian blur is delegated to Skia/Impeller's `ui.ImageFilter.blur` (internally separable two-pass + progressive downsampling, grain-free), with sigma taken from the original `BLUR_RADIUS_TO_SIGMA=0.45`; color controls (brightness/contrast/saturation) use an equivalent `ColorFilter.matrix`. [MiuixHighlight]'s bloom border is still based on the precompiled shader `shaders/miuix_bloom_stroke.frag`.

@@ -1,5 +1,15 @@
 ## 浮层与反馈 Overlays & Feedback
 
+本章的原 Overlay 组件保留旧默认值。新增 Glass 弹窗/对话框见 [OS4](110_os4.zh.md)：Glass Popup 用 `show + child`，GlassDialog 用 `visible + child`，不要套用原 OverlayDialog 的 `show + content`。
+
+### OS4 表面注入：MiuixPopupSurfaceBuilder
+
+签名为 `Widget Function(BuildContext context, ShapeBorder shape, Widget child)`。
+支持 `MiuixOverlayCascadingListPopup`、`MiuixWindowCascadingListPopup`、两种 `IconCascadingDropdownMenu`，
+以及底层 `MiuixOverlayListPopup`、`MiuixWindowListPopup`、`MiuixListPopupContent` 的 `surfaceBuilder`。
+传 `miuixGlassSurface(backdrop: backdrop)` 即可；自定义回调需保留传入的 child 和形状。
+该入口不把旧菜单动画升级为 OS4，按钮变形/二级菜单展开用 [独立 Glass 弹窗](110_os4.zh.md)。
+
 ### MiuixDismissScope
 
 向对话框内容提供关闭请求的 InheritedWidget。包装在 `MiuixOverlayDialog` 内容外侧；子树可通过 `MiuixDismissScope.maybeOf(context)` 取得当前对话框的关闭回调，未处于对话框时返回 `null`。
@@ -386,6 +396,7 @@ MiuixWindowDropdownMenu(
 | `enabled` | `bool` | `true` | 是否启用 |
 | `maxHeight` | `double?` | `null` | 弹层最大高度 |
 | `dropdownColors` | `MiuixDropdownColors?` | `null` | 弹层配色 |
+| `surfaceBuilder` | `MiuixPopupSurfaceBuilder?` | `null` | 可选面板表面；传 `miuixGlassSurface(backdrop: ...)` 只换材质，保留旧动效 |
 | `renderInRootScaffold` | `bool` | `true` | 是否渲染到根 Scaffold 弹层 |
 | `collapseOnSelection` | `bool` | `true` | 选中后是否收起 |
 | `onExpandedChange` | `ValueChanged<bool>?` | `null` | 展开/收起回调 |
@@ -405,6 +416,7 @@ MiuixWindowDropdownMenu(
 | `enabled` | `bool` | `true` | 是否启用 |
 | `maxHeight` | `double?` | `null` | 弹层最大高度 |
 | `dropdownColors` | `MiuixDropdownColors?` | `null` | 弹层配色 |
+| `surfaceBuilder` | `MiuixPopupSurfaceBuilder?` | `null` | 可选面板表面；传 `miuixGlassSurface(backdrop: ...)` 只换材质，保留旧动效 |
 | `collapseOnSelection` | `bool` | `true` | 选中后是否收起 |
 | `onExpandedChange` | `ValueChanged<bool>?` | `null` | 展开/收起回调 |
 | `backgroundColor` | `Color?` | `null` | 图标按钮背景色 |

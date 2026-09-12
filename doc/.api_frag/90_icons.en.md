@@ -1,5 +1,7 @@
 ## Icons
 
+The independent `MiuixIcons.os4` namespace adds 176 symbols × 5 weights without replacing basic / extended. See [110_os4](110_os4.en.md) for OS4 widgets and materials.
+
 This chapter covers flutter_miuix's icon system: [MiuixIcon] (the unified rendering entry), [MiuixIcons] (the icon set entry), [MiuixBasicIcons] (7 basic vector icons), and [MiuixExtendedIcons] (120+ extended icons × 5 weights).
 
 The underlying vector data model ([MiuixVectorIcon] / [MiuixVectorPath] / `miuixParsePath`) is documented in the "Foundation" chapter.
@@ -68,6 +70,27 @@ Entry point for the built-in Miuix icon set. `MiuixIcons._()` private constructo
 |---|---|---|
 | `basic` | `MiuixBasicIcons` | Basic vector icons used internally |
 | `extended` | `MiuixExtendedIcons` | Extended icons, 120+ × 5 weights |
+| `os4` | `MiuixOs4Icons` | OS4 symbols, 176 × 5 weights; requires an OS4-capable package |
+
+### MiuixOs4Icons
+
+Access through `MiuixIcons.os4`. All 176 symbols use the existing `MiuixIconWeight` enum:
+`light / normal / regular / medium / demibold`, defaulting to regular. There is no separate OS4 weight enum.
+
+| Member | Return type | Usage |
+|---|---|---|
+| `byName(String name, [MiuixIconWeight weight = MiuixIconWeight.regular])` | `MiuixVectorIcon?` | Lower-camel-case name; missing names return null. Check names instead of assuming parity with extended |
+| `names` | `List<String>` | Read-only available names; do not load the entire catalog into context unnecessarily |
+| `search` / `settings` / `create` / `image` / `chevronBackward`, etc. | `MiuixVectorIcon` | Regular-weight getters |
+
+~~~dart
+MiuixIcon(vector: MiuixIcons.os4.search);
+MiuixIcon(vector: MiuixIcons.os4.byName('settings', MiuixIconWeight.medium)!);
+MiuixIcon(vector: MiuixIcons.os4.chevronBackward, contentDescription: 'Back');
+~~~
+
+Directional icons retain `MiuixVectorIcon.autoMirror`; MiuixIcon reads Directionality for RTL. Do not mirror them twice.
+Navigation/menu `icon` fields accept a Widget, so wrap vector data with `MiuixIcon(vector: ...)`.
 
 ### MiuixBasicIcons
 

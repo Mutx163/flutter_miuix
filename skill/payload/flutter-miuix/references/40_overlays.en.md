@@ -1,5 +1,15 @@
 ## Overlays & Feedback
 
+Original Overlay widgets retain their defaults. For the new Glass popups/dialog see [OS4](110_os4.en.md): Glass Popup uses `show + child`, GlassDialog uses `visible + child`, not OverlayDialog's `show + content`.
+
+### OS4 surface injection: MiuixPopupSurfaceBuilder
+
+Signature: `Widget Function(BuildContext context, ShapeBorder shape, Widget child)`.
+The optional `surfaceBuilder` is supported by Overlay/Window CascadingListPopup, both IconCascadingDropdownMenu
+variants, and the lower-level Overlay/Window ListPopup and ListPopupContent.
+Pass `miuixGlassSurface(backdrop: backdrop)` or preserve the supplied child/shape in a custom builder.
+This does not replace legacy motion. For OS4 morphing and submenu expansion use the [independent Glass popups](110_os4.en.md).
+
 ### MiuixDismissScope
 
 An InheritedWidget that exposes a dismiss request to dialog content. Wrapped around `MiuixOverlayDialog` content; descendants can obtain the host dialog's dismiss callback via `MiuixDismissScope.maybeOf(context)`, returning `null` when not inside a dialog.
@@ -374,6 +384,7 @@ A Scaffold icon cascading dropdown menu triggered by an IconButton; a `MiuixDrop
 | `enabled` | `bool` | `true` | Whether enabled |
 | `maxHeight` | `double?` | `null` | Max popup height |
 | `dropdownColors` | `MiuixDropdownColors?` | `null` | Popup colors |
+| `surfaceBuilder` | `MiuixPopupSurfaceBuilder?` | `null` | Optional panel surface; `miuixGlassSurface(backdrop: ...)` changes material without replacing legacy motion |
 | `renderInRootScaffold` | `bool` | `true` | Render into root Scaffold overlay |
 | `collapseOnSelection` | `bool` | `true` | Collapse after selection |
 | `onExpandedChange` | `ValueChanged<bool>?` | `null` | Expand/collapse callback |
@@ -393,6 +404,7 @@ A window-level icon cascading dropdown menu (single group). Named constructor `.
 | `enabled` | `bool` | `true` | Whether enabled |
 | `maxHeight` | `double?` | `null` | Max popup height |
 | `dropdownColors` | `MiuixDropdownColors?` | `null` | Popup colors |
+| `surfaceBuilder` | `MiuixPopupSurfaceBuilder?` | `null` | Optional panel surface; `miuixGlassSurface(backdrop: ...)` changes material without replacing legacy motion |
 | `collapseOnSelection` | `bool` | `true` | Collapse after selection |
 | `onExpandedChange` | `ValueChanged<bool>?` | `null` | Expand/collapse callback |
 | `backgroundColor` | `Color?` | `null` | Icon button background color |

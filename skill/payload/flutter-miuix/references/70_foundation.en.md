@@ -451,6 +451,7 @@ Vector icon.
 | `viewport` | `Size` | Viewport size for path coordinates (`viewportWidth/Height`) |
 | `intrinsicSize` | `Size` | Default render size (`defaultWidth/Height`, logical pixels); used when [MiuixIcon] does not specify a size |
 | `paths` | `List<MiuixVectorPath>` | All paths of the icon (in paint order) |
+| `autoMirror` | `bool` | Defaults to false; directional OS4 icons set it to true and MiuixIcon mirrors them in RTL |
 
 #### MiuixVectorIconPainter
 
@@ -460,6 +461,7 @@ A `CustomPainter` that draws [MiuixVectorIcon] onto a **viewport-sized** canvas;
 |---|---|---|
 | `icon` | `MiuixVectorIcon` | Vector icon |
 | `tint` | `Color?` | Tint color; when non-null, applies `ColorFilter.mode(tint, BlendMode.srcIn)` to the whole vector; null draws with original vector colors (multi-color / untinted scenarios) |
+| `textDirection` | `TextDirection` | Defaults to TextDirection.ltr; pass the current direction when using the painter directly with autoMirror icons |
 
 #### `miuixEvenOddPath()` → `Path`
 
