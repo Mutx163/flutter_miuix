@@ -65,7 +65,7 @@ flutter-miuix-skill —— 把 flutter_miuix 的 AI 使用指南装进你的项�
   <项目>/.claude/skills/${SKILL_NAME}/
 
 安装后，Claude Code 等支持 Agent Skills 的 AI 会在你用到 flutter_miuix
-组件时自动加载该指南（含 45+ 组件的中英双语 API 参考）。
+组件时自动加载该指南（含原组件与 OS4 玻璃组件的中英双语 API 参考）。
 `);
 }
 

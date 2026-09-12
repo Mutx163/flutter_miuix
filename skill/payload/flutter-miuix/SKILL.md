@@ -32,9 +32,10 @@ HyperOS 4 使用独立的 `MiuixGlass*` API；旧组件默认样式和用法保�
 
 - 已有项目先查看 `pubspec.yaml`、`pubspec.lock`；必要时通过 `.dart_tool/package_config.json`
   定位实际解析的 flutter_miuix，核对它的 `lib/miuix.dart` 导出。以项目安装的 API 为准。
-- 本 skill 包含 OS4 源码分支的能力，**不表示 pub.dev 已发布相同实现**。不能仅凭 `^1.0.0`、
-  `1.1.1` 或“最新版”推定存在 `MiuixGlass*`。若缺少所需导出，说明缺口，再按用户选定的已发布版本、
-  git revision 或本地 path 接入；不要凭空编版本号、悄悄升级依赖或导入 `src/` 绕过缺失 API。
+- OS4（`MiuixGlass*`、`MiuixIcons.os4`）自 **1.2.0** 起随 pub.dev 发布，1.1.x 及更早不含这些导出。
+  不能仅凭 `^1.0.0` 或“最新版”字样推定可用——以 `pubspec.lock` 实际解析到的版本为准。若缺少所需导出，
+  说明缺口（需 `^1.2.0`），再按用户选定的版本、git revision 或本地 path 接入；不要悄悄升级依赖或导入
+  `src/` 绕过缺失 API。
 - 新项目需要普通组件且尚未依赖库时，可用 `flutter pub add flutter_miuix`；OS4 仍需上述可用性核对。
 
 ## 导入
