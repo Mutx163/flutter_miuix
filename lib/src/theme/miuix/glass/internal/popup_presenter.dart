@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../blur/miuix_backdrop.dart';
 import '../../components/miuix_glass.dart';
+import '../../foundation/miuix_popup_utils.dart';
 import '../../theme/miuix_theme.dart';
 import '../miuix_glass_decoration.dart';
 import '../miuix_glass_material.dart';
@@ -42,6 +43,7 @@ class GlassPopupPresenter extends StatefulWidget {
     this.scrimAlpha,
     this.onDismissFinished,
     this.onMeasured,
+    this.surfaceBuilder,
   });
   final bool show, simplified, stacked;
   final VoidCallback onDismissRequest;
@@ -59,6 +61,17 @@ class GlassPopupPresenter extends StatefulWidget {
   final EdgeInsets contentPadding;
   final Color? maskColor;
   final double? scrimAlpha;
+
+  /// 替换面板材质（保留几何、动效与交互）。
+  ///
+  /// 与 `MiuixListPopup` / 级联菜单同款约定：回调拿到 `(context, shape, child)`，
+  /// 返回的面板会**原样取代**内置的 `MiuixGlassPanel`；[child] 是撑满面板的
+  /// 占位（`SizedBox.expand()`），调用方自绘材质面即可。
+  ///
+  /// 用途：调用方想让弹层材质跟随自己的外观档位（例如全局液态 / 柔光玻璃），
+  /// 而不必替换掉 presenter 的形变、二级面板与锚定逻辑。
+  /// 传 null 时行为与不加此参数完全一致。
+  final MiuixPopupSurfaceBuilder? surfaceBuilder;
   @override
   State<GlassPopupPresenter> createState() => _GlassPopupPresenterState();
 }
@@ -351,6 +364,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         ui.lerpDouble(4, widget.cornerRadius, progress)!,
       _ => widget.cornerRadius,
     };
+    final panelShape = MiuixGlassShape(cornerRadius: math.max(0, radius));
     final panelAlpha =
         kind == MiuixGlassPopupMotion.dropdown &&
             widget.show &&
@@ -484,36 +498,42 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                     },
                     panel: Opacity(
                       opacity: panelAlpha,
-                      child: MiuixGlassPanel(
-                        backdrop: inherited
-                            ? (isTransform
-                                  ? source.backdrop
-                                  : (widget.backdrop ?? source.backdrop))
-                            : widget.backdrop,
-                        style: inherited ? source.style : v.style,
-                        material: inherited
-                            ? source.material
-                            : (kind == MiuixGlassPopupMotion.dialog
-                                  ? v.material
-                                  : (v.material ??
-                                        MiuixGlassMaterials.popupViewGlass(
-                                          dark,
-                                        ))),
-                        underlayMaterial: inherited ? source.underlay : null,
-                        shape: MiuixGlassShape(
-                          cornerRadius: math.max(0, radius),
-                        ),
-                        alpha: v.alpha,
-                        stroke: !v.showStroke
-                            ? null
-                            : inherited
-                            ? source.stroke
-                            : (v.stroke ?? MiuixGlassStrokes.forTheme(dark)),
-                        shadow: v.shadow,
-                        fill: inherited ? source.fill : v.containerColor,
-                        shading: kind == MiuixGlassPopupMotion.dialog,
-                        child: const SizedBox.expand(),
-                      ),
+                      child:
+                          widget.surfaceBuilder?.call(
+                            context,
+                            panelShape,
+                            const SizedBox.expand(),
+                          ) ??
+                          MiuixGlassPanel(
+                            backdrop: inherited
+                                ? (isTransform
+                                      ? source.backdrop
+                                      : (widget.backdrop ?? source.backdrop))
+                                : widget.backdrop,
+                            style: inherited ? source.style : v.style,
+                            material: inherited
+                                ? source.material
+                                : (kind == MiuixGlassPopupMotion.dialog
+                                      ? v.material
+                                      : (v.material ??
+                                            MiuixGlassMaterials.popupViewGlass(
+                                              dark,
+                                            ))),
+                            underlayMaterial: inherited
+                                ? source.underlay
+                                : null,
+                            shape: panelShape,
+                            alpha: v.alpha,
+                            stroke: !v.showStroke
+                                ? null
+                                : inherited
+                                ? source.stroke
+                                : (v.stroke ?? MiuixGlassStrokes.forTheme(dark)),
+                            shadow: v.shadow,
+                            fill: inherited ? source.fill : v.containerColor,
+                            shading: kind == MiuixGlassPopupMotion.dialog,
+                            child: const SizedBox.expand(),
+                          ),
                     ),
                     content: rows,
                     anchorContent: copy,
@@ -560,6 +580,7 @@ class GlassPopupWidget extends StatelessWidget {
     this.scrimAlpha,
     this.onDismissFinished,
     this.onMeasured,
+    this.surfaceBuilder,
   }) : assert(
          motion == MiuixGlassPopupMotion.dialog ||
              anchor != null ||
@@ -581,6 +602,9 @@ class GlassPopupWidget extends StatelessWidget {
   final EdgeInsets contentPadding;
   final Color? maskColor;
   final double? scrimAlpha;
+
+  /// 替换面板材质（见 [GlassPopupPresenter.surfaceBuilder]）。
+  final MiuixPopupSurfaceBuilder? surfaceBuilder;
   @override
   Widget build(BuildContext context) => GlassPopupPresenter(
     show: show,
@@ -602,6 +626,7 @@ class GlassPopupWidget extends StatelessWidget {
     scrimAlpha: scrimAlpha,
     onDismissFinished: onDismissFinished,
     onMeasured: onMeasured,
+    surfaceBuilder: surfaceBuilder,
     child: child,
   );
 }
