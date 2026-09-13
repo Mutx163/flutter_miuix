@@ -25,5 +25,6 @@ class MiuixGlassTransformPopup extends GlassPopupWidget {
     super.contentPadding,
     super.onDismissFinished,
     super.onMeasured,
+    super.surfaceBuilder,
   }) : super(motion: MiuixGlassPopupMotion.transform);
 }

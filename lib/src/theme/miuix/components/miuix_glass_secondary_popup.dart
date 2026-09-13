@@ -22,5 +22,6 @@ class MiuixGlassSecondaryPopup extends GlassPopupWidget {
     super.contentPadding,
     super.onDismissFinished,
     super.onMeasured,
+    super.surfaceBuilder,
   }) : super(motion: MiuixGlassPopupMotion.secondary);
 }
