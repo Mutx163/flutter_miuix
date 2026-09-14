@@ -83,12 +83,15 @@ class GlassPopupPresenter extends StatefulWidget {
   /// 「原地缩小」而不是「整体挪走」。
   final bool stackShrinkFromAnchor;
 
-  /// 遮罩（面板外区域）被点击时的回调；null = 走 [onDismissRequest]（上游原行为）。
+  /// 遮罩（面板外区域）被点击时的回调，**带全局点击位置**；null = 走
+  /// [onDismissRequest]（上游原行为）。
   ///
-  /// 用途：弹层里还有一层自己的子面板（如二级菜单）时，希望「点面板外」直接
-  /// 关掉整窗，而返回键仍是先收子面板。只影响遮罩点击，不影响 ESC、
-  /// 返回手势与路由 history。
-  final VoidCallback? onScrimTap;
+  /// 为什么要位置：弹层里还有一层自己的子面板（如二级菜单）时，「点在一级
+  /// 面板里、但在二级之外」应当只收起二级，「点在两个面板之外」才关整窗 ——
+  /// 调用方拿坐标和自己面板的矩形一比即可区分。只影响遮罩点击，不影响 ESC、
+  /// 返回手势与路由 history；无障碍的 "dismiss barrier" 动作没有坐标，
+  /// 走 [onDismissRequest]。
+  final void Function(Offset globalPosition)? onScrimTap;
 
   /// 替换面板材质（保留几何、动效与交互）。
   ///
@@ -205,10 +208,15 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
   /// 与 [_requestDismiss] 的差别只有两点：不做 `stacked` 早退（`onScrimTap` 是
   /// 调用方显式要的动作，且本场景里点的是压在上面那层的遮罩），以及换成
   /// `onScrimTap ?? onDismissRequest`。去重标志 `_dismissRequested` 共用。
-  void _requestScrimDismiss() {
+  void _requestScrimDismiss(Offset globalPosition) {
     if (!widget.show || _dismissRequested) return;
     _dismissRequested = true;
-    (widget.onScrimTap ?? widget.onDismissRequest)();
+    final onScrimTap = widget.onScrimTap;
+    if (onScrimTap != null) {
+      onScrimTap(globalPosition);
+    } else {
+      widget.onDismissRequest();
+    }
   }
 
   Future<void> _linear(
@@ -512,11 +520,20 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                       context,
                     ).modalBarrierDismissLabel,
                     button: true,
-                    onTap: _requestScrimDismiss,
+                    // 无障碍 "dismiss barrier" 动作没有坐标：按标准关闭处理。
+                    onTap: _requestDismiss,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       excludeFromSemantics: true,
-                      onTap: _requestScrimDismiss,
+                      // 有位置回调时用 onTapUp 把坐标交出去（同一手势只处理
+                      // 一次，所以此时不能再挂 onTap）。
+                      onTapUp: widget.onScrimTap == null
+                          ? null
+                          : (details) =>
+                                _requestScrimDismiss(details.globalPosition),
+                      onTap: widget.onScrimTap == null
+                          ? () => _requestScrimDismiss(Offset.zero)
+                          : null,
                       child: ColoredBox(
                         color: Colors.black.withValues(
                           alpha: scrim.clamp(0, 1),
@@ -679,7 +696,7 @@ class GlassPopupWidget extends StatelessWidget {
   final bool stackShrinkFromAnchor;
 
   /// 遮罩点击回调（见 [GlassPopupPresenter.onScrimTap]）。
-  final VoidCallback? onScrimTap;
+  final void Function(Offset globalPosition)? onScrimTap;
 
   /// 替换面板材质（见 [GlassPopupPresenter.surfaceBuilder]）。
   final MiuixPopupSurfaceBuilder? surfaceBuilder;
