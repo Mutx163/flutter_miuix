@@ -20,6 +20,7 @@ class MiuixGlassSecondaryPopup extends GlassPopupWidget {
     super.visuals,
     super.cornerRadius,
     super.contentPadding,
+    super.onScrimTap,
     super.onDismissFinished,
     super.onMeasured,
     super.surfaceBuilder,

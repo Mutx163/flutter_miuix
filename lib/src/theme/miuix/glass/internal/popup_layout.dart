@@ -27,6 +27,7 @@ class GlassPopupLayout extends MultiChildRenderObjectWidget {
     this.interactive = true,
     this.onMeasured,
     this.stackProgress = 0,
+    this.stackAnchorPivot = false,
     this.maskColor = const Color(0x66000000),
   }) : super(children: [panel, content, ?anchorContent]);
   final MiuixGlassPopupMotion motion;
@@ -39,6 +40,13 @@ class GlassPopupLayout extends MultiChildRenderObjectWidget {
   final bool interactive;
   final ValueChanged<Size>? onMeasured;
   final Color maskColor;
+
+  /// 让位缩放的支点是否取「离锚点最近的面板角」（缺省 = 面板中心）。
+  ///
+  /// 面板通常从锚点（触发按钮 / 被点的行）长出来，锚点所在的那个角就是
+  /// 「长出来的那一点」；以它为支点缩放，锚点处的内容在屏幕上几乎不动 ——
+  /// 读起来是「原地缩小」。以中心为支点则会整体向内挪。
+  final bool stackAnchorPivot;
   @override
   RenderObject createRenderObject(BuildContext context) =>
       _RenderGlassPopupLayout(this);
@@ -61,15 +69,29 @@ class _RenderGlassPopupLayout extends RenderBox
   RenderBox get panel => firstChild!;
   RenderBox get content => childAfter(panel)!;
   RenderBox? get copy => childAfter(content);
-  Matrix4 get stackTransform => Matrix4.identity()
-    ..translateByDouble(frame.rect.center.dx, frame.rect.center.dy, 0, 1)
-    ..scaleByDouble(
-      1 - .05 * data.stackProgress,
-      1 - .05 * data.stackProgress,
-      1,
-      1,
-    )
-    ..translateByDouble(-frame.rect.center.dx, -frame.rect.center.dy, 0, 1);
+  /// 让位缩放的支点：默认面板中心，[GlassPopupLayout.stackAnchorPivot] 时取
+  /// 「离锚点最近的面板角」。
+  Offset get stackPivot {
+    final rect = frame.rect;
+    if (!data.stackAnchorPivot) return rect.center;
+    return Offset(
+      anchor.center.dx <= rect.center.dx ? rect.left : rect.right,
+      anchor.center.dy <= rect.center.dy ? rect.top : rect.bottom,
+    );
+  }
+
+  Matrix4 get stackTransform {
+    final pivot = stackPivot;
+    return Matrix4.identity()
+      ..translateByDouble(pivot.dx, pivot.dy, 0, 1)
+      ..scaleByDouble(
+        1 - .05 * data.stackProgress,
+        1 - .05 * data.stackProgress,
+        1,
+        1,
+      )
+      ..translateByDouble(-pivot.dx, -pivot.dy, 0, 1);
+  }
   double get contentScale => data.motion == MiuixGlassPopupMotion.secondary
       ? 1
       : math.min(1, frame.rect.width / math.max(content.size.width, .01));
