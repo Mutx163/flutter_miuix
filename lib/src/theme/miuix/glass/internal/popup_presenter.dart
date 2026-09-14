@@ -485,7 +485,16 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         ),
       );
     }
-    return Material(
+    return IgnorePointer(
+      // 收起动画期间（`show` 已置 false、覆盖层还没卸载）让点击穿透到页面。
+      //
+      // 遮罩在这段窗口里仍在最上层、且是 opaque 命中：用户"点空白关掉、立刻再点
+      // 按钮重开"时，第二次点击被这张**正在消失的**旧遮罩吃掉（`_requestDismiss`
+      // 已去重，什么也不做），读起来就是"点了没反应、等一会儿才灵"。
+      // 收起期只应是视觉过程 —— 与 Flutter 自己的 ModalBarrier 同口径：pop 之后
+      // 立刻不再拦截。
+      ignoring: !widget.show,
+      child: Material(
       type: MaterialType.transparency,
       child: CallbackShortcuts(
         bindings: {
@@ -595,6 +604,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
             ),
           ),
         ),
+      ),
       ),
     );
   }
