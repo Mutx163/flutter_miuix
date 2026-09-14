@@ -26,6 +26,26 @@ TickerFuture animateGlassTo(
   );
 }
 
+/// [animateGlassTo] 的曲线/时长版本：给「让位」这类**有确定终点的位移**用。
+///
+/// 弹簧版（[animateGlassTo]）适合交给物理收敛，但它的收敛容差写死在
+/// [Tolerance] 里、弹簧参数也只能由包内 motion 表给，调用方无法把一段让位
+/// 动作调到「200ms fastOutSlowIn」这种确定性手感。这个函数走
+/// [AnimationController.animateTo]，行为与包内 `_linear()` 同源。
+TickerFuture animateGlassToCurve(
+  AnimationController controller,
+  double target,
+  Duration duration,
+  Curve curve, {
+  bool disableAnimations = false,
+}) {
+  if (disableAnimations) {
+    controller.value = target;
+    return TickerFuture.complete();
+  }
+  return controller.animateTo(target, duration: duration, curve: curve);
+}
+
 /// 内部弹簧构建器：重定向时保留当前速度，不重新从端点启动。
 class GlassSpringBuilder extends StatefulWidget {
   const GlassSpringBuilder({

@@ -24,6 +24,7 @@ class MiuixGlassPopupItem extends StatelessWidget {
     this.selected = false,
     this.showArrow = false,
     this.arrowRotation = 0,
+    this.arrowRotationDuration = Duration.zero,
     this.contentColor,
     this.summaryColor,
     this.selectedContentColor,
@@ -37,6 +38,13 @@ class MiuixGlassPopupItem extends StatelessWidget {
 
   /// 角度制，同 Kotlin arrowRotation；RTL 的展开箭头通常取 +90，LTR 取 -90。
   final double arrowRotation;
+
+  /// 箭头转到 [arrowRotation] 的时长；`Duration.zero`（缺省）= 瞬间切换，
+  /// 与不加这个参数完全一致。
+  ///
+  /// 展开态与收起态是两个角度（如 0 → -90），直接换角度是「跳一下」；
+  /// 给它一段时长就变成连续旋转，读起来才是「打开 / 收起」。
+  final Duration arrowRotationDuration;
   final Color? contentColor, summaryColor, selectedContentColor, pressedColor;
   @override
   Widget build(BuildContext context) {
@@ -124,8 +132,10 @@ class MiuixGlassPopupItem extends StatelessWidget {
                         ],
                         if (showArrow) ...[
                           const SizedBox(width: 8),
-                          Transform.rotate(
-                            angle: arrowRotation * 3.141592653589793 / 180,
+                          AnimatedRotation(
+                            turns: arrowRotation / 360,
+                            duration: arrowRotationDuration,
+                            curve: Curves.fastOutSlowIn,
                             child: Transform.flip(
                               flipX:
                                   Directionality.of(context) ==

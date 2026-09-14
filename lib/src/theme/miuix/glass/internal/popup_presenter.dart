@@ -39,6 +39,10 @@ class GlassPopupPresenter extends StatefulWidget {
     this.contentPadding = const EdgeInsets.symmetric(vertical: 8),
     this.simplified = false,
     this.stacked = false,
+    this.stackDuration,
+    this.stackCurve = Curves.fastOutSlowIn,
+    this.stackShrinkFromAnchor = false,
+    this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
     this.onDismissFinished,
@@ -61,6 +65,30 @@ class GlassPopupPresenter extends StatefulWidget {
   final EdgeInsets contentPadding;
   final Color? maskColor;
   final double? scrimAlpha;
+
+  /// 「让位」([stacked]) 的补间时长；null = 用包内
+  /// [MiuixGlassMotion.secondaryPopup] 弹簧（上游原行为）。
+  ///
+  /// 弹簧的收敛容差与参数都封在包内，调用方无法把这段让位调到确定性手感
+  /// （如 200ms fastOutSlowIn）；要那套手感时传时长 + [stackCurve]。
+  final Duration? stackDuration;
+
+  /// [stackDuration] 非 null 时使用的曲线。
+  final Curve stackCurve;
+
+  /// 让位缩放是否以**离锚点最近的那个面板角**为支点（上游是以面板中心）。
+  ///
+  /// 面板从锚点行长出来时，锚点所在的角正是「长出来的那一点」；以它为支点，
+  /// 让位期间锚点行在屏幕上几乎不动（二级面板贴在它上面），读起来才是
+  /// 「原地缩小」而不是「整体挪走」。
+  final bool stackShrinkFromAnchor;
+
+  /// 遮罩（面板外区域）被点击时的回调；null = 走 [onDismissRequest]（上游原行为）。
+  ///
+  /// 用途：弹层里还有一层自己的子面板（如二级菜单）时，希望「点面板外」直接
+  /// 关掉整窗，而返回键仍是先收子面板。只影响遮罩点击，不影响 ESC、
+  /// 返回手势与路由 history。
+  final VoidCallback? onScrimTap;
 
   /// 替换面板材质（保留几何、动效与交互）。
   ///
@@ -138,12 +166,24 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
       });
     }
     if (widget.stacked != oldWidget.stacked) {
-      animateGlassTo(
-        _stack,
-        widget.stacked ? 1 : 0,
-        MiuixGlassMotion.secondaryPopup(widget.stacked),
-        disableAnimations: _reduce,
-      );
+      final target = widget.stacked ? 1.0 : 0.0;
+      final duration = widget.stackDuration;
+      if (duration != null) {
+        animateGlassToCurve(
+          _stack,
+          target,
+          duration,
+          widget.stackCurve,
+          disableAnimations: _reduce,
+        );
+      } else {
+        animateGlassTo(
+          _stack,
+          target,
+          MiuixGlassMotion.secondaryPopup(widget.stacked),
+          disableAnimations: _reduce,
+        );
+      }
     }
   }
 
@@ -158,6 +198,17 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
     if (!widget.show || _dismissRequested || widget.stacked) return;
     _dismissRequested = true;
     widget.onDismissRequest();
+  }
+
+  /// 遮罩被点击：优先走调用方的 [GlassPopupPresenter.onScrimTap]。
+  ///
+  /// 与 [_requestDismiss] 的差别只有两点：不做 `stacked` 早退（`onScrimTap` 是
+  /// 调用方显式要的动作，且本场景里点的是压在上面那层的遮罩），以及换成
+  /// `onScrimTap ?? onDismissRequest`。去重标志 `_dismissRequested` 共用。
+  void _requestScrimDismiss() {
+    if (!widget.show || _dismissRequested) return;
+    _dismissRequested = true;
+    (widget.onScrimTap ?? widget.onDismissRequest)();
   }
 
   Future<void> _linear(
@@ -452,11 +503,11 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                       context,
                     ).modalBarrierDismissLabel,
                     button: true,
-                    onTap: _requestDismiss,
+                    onTap: _requestScrimDismiss,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       excludeFromSemantics: true,
-                      onTap: _requestDismiss,
+                      onTap: _requestScrimDismiss,
                       child: ColoredBox(
                         color: Colors.black.withValues(
                           alpha: scrim.clamp(0, 1),
@@ -488,6 +539,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                       ),
                     ),
                     stackProgress: _stack.value.clamp(0, 1),
+                    stackAnchorPivot: widget.stackShrinkFromAnchor,
                     maskColor:
                         widget.maskColor ??
                         (dark ? Colors.black : Colors.white).withValues(
@@ -576,6 +628,10 @@ class GlassPopupWidget extends StatelessWidget {
     this.contentPadding = const EdgeInsets.symmetric(vertical: 8),
     this.simplified = false,
     this.stacked = false,
+    this.stackDuration,
+    this.stackCurve = Curves.fastOutSlowIn,
+    this.stackShrinkFromAnchor = false,
+    this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
     this.onDismissFinished,
@@ -603,6 +659,18 @@ class GlassPopupWidget extends StatelessWidget {
   final Color? maskColor;
   final double? scrimAlpha;
 
+  /// 让位补间（见 [GlassPopupPresenter.stackDuration]）。
+  final Duration? stackDuration;
+
+  /// 让位曲线（见 [GlassPopupPresenter.stackCurve]）。
+  final Curve stackCurve;
+
+  /// 让位缩放支点是否取锚点角（见 [GlassPopupPresenter.stackShrinkFromAnchor]）。
+  final bool stackShrinkFromAnchor;
+
+  /// 遮罩点击回调（见 [GlassPopupPresenter.onScrimTap]）。
+  final VoidCallback? onScrimTap;
+
   /// 替换面板材质（见 [GlassPopupPresenter.surfaceBuilder]）。
   final MiuixPopupSurfaceBuilder? surfaceBuilder;
   @override
@@ -622,6 +690,10 @@ class GlassPopupWidget extends StatelessWidget {
     contentPadding: contentPadding,
     simplified: simplified,
     stacked: stacked,
+    stackDuration: stackDuration,
+    stackCurve: stackCurve,
+    stackShrinkFromAnchor: stackShrinkFromAnchor,
+    onScrimTap: onScrimTap,
     maskColor: maskColor,
     scrimAlpha: scrimAlpha,
     onDismissFinished: onDismissFinished,
