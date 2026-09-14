@@ -638,7 +638,17 @@ class _RenderGlass extends RenderProxyBox {
           ? (Paint()..color = Color.fromRGBO(0, 0, 0, cfg.alpha))
           : Paint(),
     );
-    if (backdrop?.snapshot != null && backdrop?.globalOffset != null) {
+    // 形状硬裁剪（mikcb 补丁）：材质本体（模糊快照 + 染色层）是**按整块 rect
+    // 画**进去的，圆角全靠后面那步 `mask` shader（`BlendMode.dstIn`）裁出来 ——
+    // 那步没生效时面板会以**整块矩形**出现：真机在柔光档点开弹层的瞬间，圆圈
+    // 外面露出一块亮方形（重新编译后 shader 已加载就看不到，属同一类「首帧未
+    // 遮罩」）。这里先按形状路径硬裁一道，材质永远不可能越出形状；描边与
+    // mask 都画在这层裁剪之外，所以 rim 高光与边缘 AA 不受影响。
+    canvas.save();
+    canvas.clipPath(shapePath);
+    if (data.ready &&
+        backdrop?.snapshot != null &&
+        backdrop?.globalOffset != null) {
       final ratio = (dpr / 4).clamp(.5, 1.0);
       final blur = cfg.material?.blurRadius ?? data.style.blur.small / 3;
       final padding = math.max(blur * 1.5, 24.0),
@@ -681,6 +691,7 @@ class _RenderGlass extends RenderProxyBox {
           ..color = data.fill.withValues(alpha: data.fill.a * surfaceAlpha),
       );
     }
+    canvas.restore(); // 结束上面的形状硬裁剪（描边与 mask 不受它影响）
     _drawStroke(canvas, offset, dpr, surfaceAlpha);
     if (has('mask')) {
       silhouette('mask', dpr);
