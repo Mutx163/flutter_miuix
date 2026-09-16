@@ -435,8 +435,18 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                   kind == MiuixGlassPopupMotion.dialog
               ? fade
               : 1.0);
+    // 形变动效（`transform`：从卡片/按钮里长出来）期间**不逐帧模糊**内容。
+    //
+    // 真机实测（25060RK16C，120Hz，每帧预算 8.3ms）：课程卡片弹窗出场每帧渲染
+    // 8.9ms（最差 21.4ms）→ 46fps；而机制相同、只是走 `dropdown` 的"下拉小气泡"
+    // 只有 4.3~4.8ms → 100fps+。差异就在形变这两处逐帧高斯模糊上（内容 sigma
+    // 最大 50/dpr ≈ 19，来源卡片同样量级，且贯穿整段动画）。
+    //
+    // 去掉后形变轨迹 / 缩放 / 圆角 / 锚点全不变，只是从「糊着长出来」变成
+    // 「直接长出来」。想找回一点过渡感就调这个系数（0 = 不模糊，0.2~0.4 轻微）。
+    const transformMorphBlurScale = 0.0;
     final blur = isTransform
-        ? (1 - content) * 50 / media.devicePixelRatio
+        ? (1 - content) * 50 / media.devicePixelRatio * transformMorphBlurScale
         : isSecondary
         ? 0.0
         : kind == MiuixGlassPopupMotion.dropdown
@@ -475,7 +485,13 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         widget.anchorContent != null &&
         (!widget.simplified || !widget.show || _previewing) &&
         icon < .999) {
-      final blur = 50 * icon / media.devicePixelRatio;
+      // 同 [blur]：来源卡片也不再逐帧模糊 —— 它本来就一边被放大中的面板盖住、
+      // 一边按 `Opacity(1 - icon)` 淡出，保持清晰读起来只是"淡出"而不是"化开"。
+      final blur =
+          50 *
+          icon /
+          media.devicePixelRatio *
+          transformMorphBlurScale;
       copy = ExcludeSemantics(
         child: IgnorePointer(
           child: Opacity(
