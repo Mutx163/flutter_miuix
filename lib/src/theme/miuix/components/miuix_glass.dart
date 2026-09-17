@@ -354,6 +354,66 @@ class _RenderGlass extends RenderProxyBox {
           tileMode: TileMode.clamp,
         ),
     );
+    // mikcb patch (perf): 不跑 glass 着色器时，把叠色直接画进同一张画布 —— 一次回读
+    // 顶掉上游的两次。
+    //
+    // 上游这里是「先 toImageSync 出模糊底，再逐个 material 走 blend 着色器 +
+    // toImageSync」：一块玻璃面每帧两次同步 GPU 回读 + 两次离屏分配，而缓存键含
+    // 元素位置与尺寸，入场/位移动画逐帧不命中 —— 真机实测弹层入场渲染线程
+    // 9~20ms 对 8.2ms 预算。
+    //
+    // blend 着色器是上游 GLASS_COLOR_BLEND_SHADER 的逐字移植：每层做
+    // `mix(d, B(d,s), a)`，而 softLight / hardLight / overlay / luminosity /
+    // colorDodge / colorBurn 的 B 都是标准（PDF）公式，与 Skia 同名混合模式一致。
+    // 因此按同样顺序、用 Canvas 的 blendMode 画在模糊底上，结果逐像素相同。
+    //
+    // 两个前提（都按前提收口，不满足就走上游原路）：
+    // * `!cfg.shading` —— 着色器档位要靠 padding 区的像素做边缘光学，而叠色在
+    //   padding 的透明区会与着色器分支（`src.a <= 0` 原样返回）产生差异；
+    //   非着色器档位只贴内框，padding 不上屏，无此问题。
+    // * 每层都有 Skia 对应模式 —— plusDarker / plusLighter 是上游自写公式
+    //   （`d ± a·(1-s)`），Skia 没有对应模式（深色档的 first 层就是 plusDarker）。
+    if (!cfg.shading) {
+      final layers = <(MiuixGlassColorLayer, double)>[
+        for (final material in [cfg.underlayMaterial, cfg.material])
+          if (material != null)
+            for (final layer in material.layers)
+              (
+                layer,
+                identical(material, cfg.underlayMaterial) ? 1.0 : cfg.alpha,
+              ),
+      ];
+      final modes = [
+        for (final entry in layers) _canvasBlendModeOf(entry.$1.mode),
+      ];
+      if (modes.every((mode) => mode != null)) {
+        // 画布此刻带着 `canvas.scale(ratio)`，纹理整幅对应 width/ratio 逻辑单位。
+        final whole = Rect.fromLTWH(
+          0,
+          0,
+          width / ratio,
+          height / ratio,
+        );
+        for (var i = 0; i < layers.length; i++) {
+          final (layer, alpha) = layers[i];
+          canvas.drawRect(
+            whole,
+            Paint()
+              ..color = layer.color.withValues(
+                alpha: layer.color.a * alpha,
+              )
+              ..blendMode = modes[i]!,
+          );
+        }
+        final picture = recorder.endRecording();
+        final merged = picture.toImageSync(width, height);
+        picture.dispose();
+        _texture?.dispose();
+        _texture = merged;
+        _textureKey = key;
+        return merged;
+      }
+    }
     final picture = recorder.endRecording();
     var result = picture.toImageSync(width, height);
     picture.dispose();
@@ -580,7 +640,18 @@ class _RenderGlass extends RenderProxyBox {
     if (data.ready &&
         backdrop?.snapshot != null &&
         backdrop?.globalOffset != null) {
-      final ratio = (dpr / 4).clamp(.5, 1.0);
+      // mikcb patch (perf): 不跑 glass 着色器的档位（柔光 / 磨砂，`shading: false`）
+      // 用更低的离屏倍率。
+      //
+      // 离屏内容先被 σ = blurRadius × 0.45 模糊过（柔光档 σ≈27），只会被
+      // `drawImageRect` 原样贴上屏 —— 多录的像素进不了最终画面，只抬高每帧的
+      // 离屏目标与模糊的片元数。这与上游给采样比例写下的理由是同一条。
+      // dpr/4→dpr/6（本机 0.69→0.46）把面积降到 44%。
+      //
+      // 跑着色器的档位不动：那里 `ratio` 还决定边缘光学的采样尺度，降它等于改观感。
+      final ratio = cfg.shading
+          ? (dpr / 4).clamp(.5, 1.0)
+          : (dpr / 6).clamp(.34, 1.0);
       final blur = cfg.material?.blurRadius ?? data.style.blur.small / 3;
       final padding = math.max(blur * 1.5, 24.0),
           image = prepare(padding, ratio);
@@ -668,3 +739,24 @@ class _RenderGlass extends RenderProxyBox {
     super.paint(context, offset);
   }
 }
+
+/// mikcb patch (perf): 上游混合模式 → Skia 同名混合模式。
+///
+/// 返回 null 表示「Skia 没有语义一致的对应模式」，调用方据此退回上游的两段式
+/// 路径。`plusDarker` / `plusLighter` 就是这一类：着色器里它们是自写公式
+/// `clamp(d ± a·s)`（plusDarker 实为 `d - a·(1-s)`，即 linear burn），
+/// Skia 的 `BlendMode.plus` / `darken` 都不是这个语义。
+///
+/// `luminosity` 对应的 `setLum` / `clipColor` 是标准非分离式混合定义，与 Skia
+/// 的实现同源；softLight / hardLight / overlay / colorDodge / colorBurn 同理。
+BlendMode? _canvasBlendModeOf(MiuixGlassColorBlendMode mode) => switch (mode) {
+  MiuixGlassColorBlendMode.srcOver => BlendMode.srcOver,
+  MiuixGlassColorBlendMode.softLight => BlendMode.softLight,
+  MiuixGlassColorBlendMode.hardLight => BlendMode.hardLight,
+  MiuixGlassColorBlendMode.overlay => BlendMode.overlay,
+  MiuixGlassColorBlendMode.luminosity => BlendMode.luminosity,
+  MiuixGlassColorBlendMode.colorDodge => BlendMode.colorDodge,
+  MiuixGlassColorBlendMode.colorBurn => BlendMode.colorBurn,
+  MiuixGlassColorBlendMode.plusDarker ||
+  MiuixGlassColorBlendMode.plusLighter => null,
+};
