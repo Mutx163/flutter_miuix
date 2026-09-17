@@ -390,6 +390,9 @@ class _RenderGlass extends RenderProxyBox {
       Paint()..filterQuality = FilterQuality.medium,
     );
     canvas.restore();
+    // 注：本补丁原有一半（叠色合进同一张画布、省一次回读）已由上游 1.3.0 的
+    // `blendLayersNatively`（`MiuixGlassColorBlendMode.fallback`）覆盖，
+    // 这里直接用上游实现；本补丁仅保留另一半（非着色器档位降离屏倍率）。
     final picture = recorder.endRecording();
     var result = picture.toImageSync(width, height);
     picture.dispose();
@@ -649,7 +652,18 @@ class _RenderGlass extends RenderProxyBox {
     if (data.ready &&
         backdrop?.snapshot != null &&
         backdrop?.globalOffset != null) {
-      final ratio = (dpr / 4).clamp(.5, 1.0);
+      // mikcb patch (perf): 不跑 glass 着色器的档位（柔光 / 磨砂，`shading: false`）
+      // 用更低的离屏倍率。
+      //
+      // 离屏内容先被 σ = blurRadius × 0.45 模糊过（柔光档 σ≈27），只会被
+      // `drawImageRect` 原样贴上屏 —— 多录的像素进不了最终画面，只抬高每帧的
+      // 离屏目标与模糊的片元数。这与上游给采样比例写下的理由是同一条。
+      // dpr/4→dpr/6（本机 0.69→0.46）把面积降到 44%。
+      //
+      // 跑着色器的档位不动：那里 `ratio` 还决定边缘光学的采样尺度，降它等于改观感。
+      final ratio = cfg.shading
+          ? (dpr / 4).clamp(.5, 1.0)
+          : (dpr / 6).clamp(.34, 1.0);
       final blur = cfg.material?.blurRadius ?? data.style.blur.small / 3;
       final padding = math.max(blur * 1.5, 24.0),
           image = prepare(padding, ratio, surfaceAlpha);
