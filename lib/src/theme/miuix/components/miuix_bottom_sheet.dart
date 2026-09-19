@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart' show SchedulerPhase;
 
 import '../foundation/miuix_popup_utils.dart';
 import '../theme/miuix_text_styles.dart';
@@ -289,7 +290,32 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
   void didUpdateWidget(_MiuixBottomSheetLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.show != widget.show) _syncVisibility();
-    _windowEntry?.markNeedsBuild();
+    _markWindowEntryDirty();
+  }
+
+  /// 让窗口层（`_windowEntry`）的子树重建。
+  ///
+  /// 窗口层的子树是用 `sourceContext` 单独构建的，不在本 State 的重建范围内，所以
+  /// 参数变化后必须显式标脏。**但帧内不能直接标脏**：父级 `setState` 触发的重建会走到
+  /// `didUpdateWidget`，此刻 `markNeedsBuild` 会被框架判为
+  /// "setState() or markNeedsBuild() called during build"（Window 变体原先就踩这个）。
+  /// 帧内（构建 / 布局 / 绘制）推到帧末补一次；其余时机（拖拽跟手等指针事件）立刻标脏，
+  /// 免得面板慢一帧。
+  void _markWindowEntryDirty() {
+    final OverlayEntry? entry = _windowEntry;
+    if (entry == null) {
+      return;
+    }
+    if (WidgetsBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _windowEntry == entry) {
+          entry.markNeedsBuild();
+        }
+      });
+      return;
+    }
+    entry.markNeedsBuild();
   }
 
   SpringDescription get _enterSpring =>
@@ -528,7 +554,7 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
           next = _dragOffset + details.delta.dy * 0.1;
         }
         setState(() => _dragOffset = next);
-        _windowEntry?.markNeedsBuild();
+        _markWindowEntryDirty();
       },
       onVerticalDragEnd: (details) {
         _handlePress.reverse();
@@ -540,7 +566,7 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
           widget.onDismissRequest?.call();
         } else {
           setState(() => _dragOffset = 0);
-          _windowEntry?.markNeedsBuild();
+          _markWindowEntryDirty();
         }
       },
       child: SizedBox(

@@ -82,4 +82,56 @@ void main() {
     // 再次能打开弹窗，进一步证明交互恢复正常。
     expect(find.text('确定'), findsOneWidget, reason: '关闭后应能再次打开，页面未卡死');
   });
+
+  // 回归测试：WindowBottomSheet 的窗口层子树由 sourceContext 单独构建，参数变化后
+  // 要显式标脏；但**父级 setState 触发的重建会走到 didUpdateWidget**，那里直接
+  // markNeedsBuild 会被框架判为 "setState() or markNeedsBuild() called during
+  // build"（Overlay 变体的 entry 为 null 所以从没暴露）。这里钉住 Window 变体。
+  testWidgets('WindowBottomSheet：父级 setState 切换 show 不在构建期标脏', (tester) async {
+    var showSheet = false;
+
+    await tester.pumpWidget(
+      MiuixSystemTheme(
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              return Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MiuixButton(
+                        onPressed: () => setState(() => showSheet = true),
+                        child: const Text('打开'),
+                      ),
+                      MiuixWindowBottomSheet(
+                        show: showSheet,
+                        onDismissRequest: () =>
+                            setState(() => showSheet = false),
+                        content: MiuixButton(
+                          onPressed: () => setState(() => showSheet = false),
+                          child: const Text('确定'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    expect(find.text('确定'), findsOneWidget, reason: '弹窗应已显示');
+    expect(tester.takeException(), isNull, reason: '父级 setState 不该在构建期标脏');
+
+    await tester.tap(find.text('确定'));
+    await tester.pumpAndSettle();
+    expect(find.text('确定'), findsNothing, reason: '关闭后窗口层应被移除');
+    expect(tester.takeException(), isNull);
+  });
 }
