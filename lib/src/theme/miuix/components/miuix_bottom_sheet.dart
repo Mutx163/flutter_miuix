@@ -51,6 +51,9 @@ class MiuixOverlayBottomSheet extends StatelessWidget {
     this.allowDismiss = true,
     this.enableNestedScroll = true,
     this.renderInRootScaffold = true,
+    this.dimColor,
+    this.surfaceBuilder,
+    this.scrimUnderlay,
     required this.content,
   });
 
@@ -60,6 +63,15 @@ class MiuixOverlayBottomSheet extends StatelessWidget {
   final Widget? endAction;
   final Color? backgroundColor;
   final bool enableWindowDim;
+
+  /// 覆盖蒙层色（默认取 `MiuixTheme.colors.windowDimming`）。
+  final Color? dimColor;
+
+  /// 替换面板材质（见 [_MiuixBottomSheetLayout.surfaceBuilder]）。
+  final MiuixPopupSurfaceBuilder? surfaceBuilder;
+
+  /// 覆盖层里、蒙层之前的前置层（见 [_MiuixBottomSheetLayout.scrimUnderlay]）。
+  final Widget? scrimUnderlay;
   final double cornerRadius;
   final double sheetMaxWidth;
   final VoidCallback? onDismissRequest;
@@ -93,6 +105,9 @@ class MiuixOverlayBottomSheet extends StatelessWidget {
     enableNestedScroll: enableNestedScroll,
     renderInRootScaffold: renderInRootScaffold,
     windowLevel: false,
+    dimColor: dimColor,
+    surfaceBuilder: surfaceBuilder,
+    scrimUnderlay: scrimUnderlay,
     content: content,
   );
 }
@@ -117,6 +132,9 @@ class MiuixWindowBottomSheet extends StatelessWidget {
     this.dragHandleColor,
     this.allowDismiss = true,
     this.enableNestedScroll = true,
+    this.dimColor,
+    this.surfaceBuilder,
+    this.scrimUnderlay,
     required this.content,
   });
 
@@ -126,6 +144,16 @@ class MiuixWindowBottomSheet extends StatelessWidget {
   final Widget? endAction;
   final Color? backgroundColor;
   final bool enableWindowDim;
+
+  /// 覆盖蒙层色（默认取 `MiuixTheme.colors.windowDimming`）。
+  final Color? dimColor;
+
+  /// 替换面板材质（见 [_MiuixBottomSheetLayout.surfaceBuilder]）。
+  final MiuixPopupSurfaceBuilder? surfaceBuilder;
+
+  /// 覆盖层里、蒙层之前的前置层（见 [_MiuixBottomSheetLayout.scrimUnderlay]）。
+  final Widget? scrimUnderlay;
+
   final double cornerRadius;
   final double sheetMaxWidth;
   final VoidCallback? onDismissRequest;
@@ -158,6 +186,9 @@ class MiuixWindowBottomSheet extends StatelessWidget {
     enableNestedScroll: enableNestedScroll,
     renderInRootScaffold: true,
     windowLevel: true,
+    dimColor: dimColor,
+    surfaceBuilder: surfaceBuilder,
+    scrimUnderlay: scrimUnderlay,
     content: content,
   );
 }
@@ -182,6 +213,9 @@ class _MiuixBottomSheetLayout extends StatefulWidget {
     required this.enableNestedScroll,
     required this.renderInRootScaffold,
     required this.windowLevel,
+    required this.dimColor,
+    required this.surfaceBuilder,
+    required this.scrimUnderlay,
     required this.content,
   });
 
@@ -191,6 +225,24 @@ class _MiuixBottomSheetLayout extends StatefulWidget {
   final Widget? endAction;
   final Color? backgroundColor;
   final bool enableWindowDim;
+
+  /// 覆盖蒙层色；null 时取 `MiuixTheme.colors.windowDimming`。
+  final Color? dimColor;
+
+  /// 替换面板材质：与 `MiuixListPopup` / OS4 玻璃弹层同款约定 `(context, shape, child)`，
+  /// 但这里的 [child] 是**真实面板内容**（拖拽把手 + 标题行 + 内容），返回的面板要自己
+  /// 画材质并包住它。传 null 时用内置的实底 `ShapeDecoration`。
+  final MiuixPopupSurfaceBuilder? surfaceBuilder;
+
+  /// 覆盖层里、**蒙层之前**的前置层；非 null 时整个覆盖层会被包进 `BackdropGroup`，
+  /// 且它作为组内第一个子项（即建立组捕获点的那个）。
+  ///
+  /// 为什么要这个位置：蒙层排在面板之前，面板里任何按绘制顺序采样背景的材质
+  /// （`BackdropFilter` / 自绘折射玻璃）都会把那层蒙一起采进去 —— 玻璃读起来发灰。
+  /// 把捕获点挪到蒙层之前，注入面就能以 `grouped` 采到**未压暗**的页面。
+  /// 传 null（默认）时不建组、不插层，行为与不加此参数完全一致。
+  final Widget? scrimUnderlay;
+
   final double cornerRadius;
   final double sheetMaxWidth;
   final VoidCallback? onDismissRequest;
@@ -341,7 +393,7 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
 
   Widget _hosted(BuildContext sourceContext) {
     final MiuixThemeData theme = MiuixTheme.of(sourceContext);
-    final Color dim = theme.colors.windowDimming;
+    final Color dim = widget.dimColor ?? theme.colors.windowDimming;
     return PopScope<Object?>(
       canPop: !widget.allowDismiss,
       onPopInvokedWithResult: (didPop, result) {
@@ -353,9 +405,13 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
           final double progress = _progress.value.clamp(0.0, 1.0);
           final double dragAlpha =
               1 - (_dragOffset / _sheetHeight).clamp(0.0, 1.0);
-          return Stack(
+          final Widget stack = Stack(
             fit: StackFit.expand,
             children: <Widget>[
+              // 组捕获点排在蒙层**之前**：它记下「还没压暗的页面」，注入面据此
+              // 以 grouped 采样，玻璃里才不会连这层蒙一起折进去。
+              if (widget.scrimUnderlay != null)
+                Positioned.fill(child: widget.scrimUnderlay!),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _requestDismiss,
@@ -377,6 +433,10 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
               ),
             ],
           );
+          // 没有注入层时不建组：其余用法行为与改动前完全一致。
+          return widget.scrimUnderlay == null
+              ? stack
+              : BackdropGroup(child: stack);
         },
       ),
     );
@@ -386,6 +446,45 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
     final EdgeInsets media = widget.defaultWindowInsetsPadding
         ? MediaQuery.viewInsetsOf(context)
         : EdgeInsets.zero;
+    final ShapeBorder shape = _TopSquircleBorder(
+      cornerRadius: widget.cornerRadius,
+    );
+    final Widget body = Padding(
+      padding: EdgeInsets.only(
+        bottom: media.bottom + widget.insideMargin.height,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _dragHandle(context),
+          _titleRow(context),
+          Flexible(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.insideMargin.width,
+              ),
+              child: MiuixDismissScope(
+                onDismissRequest: widget.onDismissRequest ?? () {},
+                child: widget.content,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    // 注入面拿到的是**真实面板内容**（把手 + 标题行 + 内容）与上游算好的形状，
+    // 它返回的面板原样取代下面这块实底 `ShapeDecoration`。
+    final Widget panel =
+        widget.surfaceBuilder?.call(context, shape, body) ??
+        DecoratedBox(
+          decoration: ShapeDecoration(
+            color:
+                widget.backgroundColor ??
+                MiuixBottomSheetDefaults.backgroundColor(context),
+            shape: shape,
+          ),
+          child: body,
+        );
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: widget.sheetMaxWidth,
@@ -397,37 +496,7 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
         padding: EdgeInsets.symmetric(horizontal: widget.outsideMargin.width),
         child: _SheetSizeReporter(
           onSize: (size) => _sheetHeight = size.height,
-          child: DecoratedBox(
-            decoration: ShapeDecoration(
-              color:
-                  widget.backgroundColor ??
-                  MiuixBottomSheetDefaults.backgroundColor(context),
-              shape: _TopSquircleBorder(cornerRadius: widget.cornerRadius),
-            ),
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: media.bottom + widget.insideMargin.height,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  _dragHandle(context),
-                  _titleRow(context),
-                  Flexible(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: widget.insideMargin.width,
-                      ),
-                      child: MiuixDismissScope(
-                        onDismissRequest: widget.onDismissRequest ?? () {},
-                        child: widget.content,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          child: panel,
         ),
       ),
     );
