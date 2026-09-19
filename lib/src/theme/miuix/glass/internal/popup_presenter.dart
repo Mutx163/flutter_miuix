@@ -48,6 +48,7 @@ class GlassPopupPresenter extends StatefulWidget {
     this.onDismissFinished,
     this.onMeasured,
     this.surfaceBuilder,
+    this.scrimUnderlay,
   });
   final bool show, simplified, stacked;
   final VoidCallback onDismissRequest;
@@ -103,6 +104,18 @@ class GlassPopupPresenter extends StatefulWidget {
   /// 而不必替换掉 presenter 的形变、二级面板与锚定逻辑。
   /// 传 null 时行为与不加此参数完全一致。
   final MiuixPopupSurfaceBuilder? surfaceBuilder;
+
+  /// 覆盖层里、**蒙层之前**的前置层；非 null 时整个覆盖层会被包进 `BackdropGroup`，
+  /// 且它作为组内**第一个**（也就是建立组捕获点的那个）子项。
+  ///
+  /// 为什么要这个位置：`dialog` 等动效会画一层压暗蒙层，蒙层排在面板**之前**，
+  /// 于是面板里任何按绘制顺序采样背景的材质（如 `BackdropFilter` / 自绘折射玻璃）
+  /// 都会把那层蒙层一起采进去 —— 玻璃读起来发灰发脏。把捕获点挪到蒙层之前，
+  /// 注入面（见 [surfaceBuilder]）就能以 `grouped: true` 采到**未压暗**的页面。
+  ///
+  /// 传 null（默认）时覆盖层不建组、也不插任何层，行为与不加此参数完全一致 ——
+  /// 没有压暗蒙层的动效（ordinary / transform / secondary / dropdown）本来就不需要。
+  final Widget? scrimUnderlay;
   @override
   State<GlassPopupPresenter> createState() => _GlassPopupPresenterState();
 }
@@ -528,8 +541,14 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
           autofocus: true,
           child: Focus(
             autofocus: true,
-            child: Stack(
+            child: _maybeGrouped(
+              Stack(
               children: [
+                // 组捕获点必须排在蒙层**之前**：它记下的是「还没压暗的页面」，
+                // 注入面（surfaceBuilder）据此以 grouped 采样，玻璃里才不会
+                // 连这层黑蒙一起折进去。
+                if (widget.scrimUnderlay != null)
+                  Positioned.fill(child: widget.scrimUnderlay!),
                 Positioned.fill(
                   child: Semantics(
                     label: MaterialLocalizations.of(
@@ -634,6 +653,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -641,6 +661,13 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
       ),
     );
   }
+
+  /// 有 [GlassPopupPresenter.scrimUnderlay] 时把覆盖层包进 `BackdropGroup`：
+  /// 组内的 `scrimUnderlay` 建立捕获点（未压暗的页面），注入面再以 `grouped`
+  /// 采它。没有注入层时原样返回 —— 其余 OS4 动效不建组、行为不变。
+  Widget _maybeGrouped(Widget stack) => widget.scrimUnderlay == null
+      ? stack
+      : BackdropGroup(child: stack);
 
   @override
   Widget build(BuildContext context) => OverlayPortal(
@@ -680,6 +707,7 @@ class GlassPopupWidget extends StatelessWidget {
     this.onDismissFinished,
     this.onMeasured,
     this.surfaceBuilder,
+    this.scrimUnderlay,
   }) : assert(
          motion == MiuixGlassPopupMotion.dialog ||
              anchor != null ||
@@ -716,6 +744,9 @@ class GlassPopupWidget extends StatelessWidget {
 
   /// 替换面板材质（见 [GlassPopupPresenter.surfaceBuilder]）。
   final MiuixPopupSurfaceBuilder? surfaceBuilder;
+
+  /// 覆盖层里、蒙层之前的前置层（见 [GlassPopupPresenter.scrimUnderlay]）。
+  final Widget? scrimUnderlay;
   @override
   Widget build(BuildContext context) => GlassPopupPresenter(
     show: show,
@@ -742,6 +773,7 @@ class GlassPopupWidget extends StatelessWidget {
     onDismissFinished: onDismissFinished,
     onMeasured: onMeasured,
     surfaceBuilder: surfaceBuilder,
+    scrimUnderlay: scrimUnderlay,
     child: child,
   );
 }
