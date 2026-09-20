@@ -418,6 +418,91 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     anchor.dispose();
   });
+  testWidgets('二级面板也能让位：支点由调用方给定时朝那个点缩', (tester) async {
+    // 本 fork 补丁：上游只让一级参与让位，二级面板原地不动 —— 两块同宽同边的
+    // 面板叠在一起时，缩过的那块左边缘比二级多退 5% 板宽，读起来「只有一半缩了」。
+    // 这条钉的是二级也能被 `stacked` 驱动，且支点由 `stackPivotBounds` 说了算。
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var show = false, stacked = false;
+    late StateSetter update;
+    const panelKey = ValueKey('secondary-panel');
+    // 锚点行（二级面板贴着它长出来）。支点取它的右上角 —— 实际用法里就是
+    // 一级面板的右上角，两块面板因此绕**同一个点**缩。
+    const anchorBounds = Rect.fromLTWH(100, 300, 200, 44);
+    await tester.pumpWidget(
+      app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return MiuixGlassSecondaryPopup(
+              show: show,
+              anchorBounds: anchorBounds,
+              sizing: const MiuixGlassPopupSizing(maxWidth: 200),
+              stacked: stacked,
+              stackDuration: const Duration(milliseconds: 200),
+              stackPivotBounds: Rect.fromLTWH(
+                anchorBounds.right,
+                anchorBounds.top,
+                0,
+                0,
+              ),
+              // 二级面板是浮在前面的亮面，不能再叠压暗（上游亮色主题的缺省
+              // 遮罩是白罩，会把二级面板照亮）。
+              maskColor: Colors.transparent,
+              onDismissRequest: () {},
+              surfaceBuilder: (context, shape, child) => ColoredBox(
+                key: panelKey,
+                color: const Color(0xFF808080),
+                child: child,
+              ),
+              child: const SizedBox(
+                width: 200,
+                height: 240,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('row'),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    update(() => show = true);
+    await tester.pumpAndSettle();
+    final panelOpen = tester.getRect(find.byKey(panelKey));
+    // 支点必须正好落在面板右上角，否则下面「右边与上边不动」就不成立。
+    expect(panelOpen.right, closeTo(anchorBounds.right, 1));
+    expect(panelOpen.top, closeTo(anchorBounds.top, 1));
+
+    update(() => stacked = true);
+    await tester.pumpAndSettle();
+    final shrunk = tester.getRect(find.byKey(panelKey));
+    expect(shrunk.right, closeTo(panelOpen.right, .5));
+    expect(shrunk.top, closeTo(panelOpen.top, .5));
+    expect(
+      shrunk.left - panelOpen.left,
+      closeTo(panelOpen.width * .05, .5),
+      reason: '左边朝支点退 5% 板宽（与一级面板同一支点时，两块左边缘才对得齐）',
+    );
+    expect(
+      panelOpen.bottom - shrunk.bottom,
+      closeTo(panelOpen.height * .05, .5),
+    );
+
+    // 收起复原。
+    update(() => stacked = false);
+    await tester.pumpAndSettle();
+    final restored = tester.getRect(find.byKey(panelKey));
+    expect(restored.left, closeTo(panelOpen.left, .5));
+    expect(restored.bottom, closeTo(panelOpen.bottom, .5));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   testWidgets('弹窗关闭期间不能通过键盘再次激活菜单项', (tester) async {
     var show = true, taps = 0;
     await tester.pumpWidget(
