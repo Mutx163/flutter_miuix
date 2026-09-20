@@ -43,6 +43,7 @@ class GlassPopupPresenter extends StatefulWidget {
     this.stackCurve = Curves.fastOutSlowIn,
     this.stackShrinkFromAnchor = false,
     this.stackPivotBounds,
+    this.stackScalesPanel = true,
     this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
@@ -97,6 +98,13 @@ class GlassPopupPresenter extends StatefulWidget {
   ///
   /// 传 null（默认）时行为与此前完全一致。
   final Rect? stackPivotBounds;
+
+  /// 让位时**面板（卡片轮廓）本身是否跟着缩**（见
+  /// [GlassPopupLayout.stackScalesPanel]，默认 true = 上游原行为）。
+  ///
+  /// 置 false 时只有内容跟着让位变换走，卡片轮廓与压暗原地不动。用于调用方
+  /// 在同一屏里另摆了一块不参与让位的面板、且两块卡片必须边缘对齐的场景。
+  final bool stackScalesPanel;
 
   /// 遮罩（面板外区域）被点击时的回调，**带全局点击位置**；null = 走
   /// [onDismissRequest]（上游原行为）。
@@ -598,6 +606,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                     stackProgress: _stack.value.clamp(0, 1),
                     stackAnchorPivot: widget.stackShrinkFromAnchor,
                     stackPivotBounds: widget.stackPivotBounds,
+                    stackScalesPanel: widget.stackScalesPanel,
                     maskColor:
                         widget.maskColor ??
                         (dark ? Colors.black : Colors.white).withValues(
@@ -691,6 +700,7 @@ class GlassPopupWidget extends StatelessWidget {
     this.stackCurve = Curves.fastOutSlowIn,
     this.stackShrinkFromAnchor = false,
     this.stackPivotBounds,
+    this.stackScalesPanel = true,
     this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
@@ -731,6 +741,9 @@ class GlassPopupWidget extends StatelessWidget {
   /// 让位缩放的支点矩形（见 [GlassPopupPresenter.stackPivotBounds]）。
   final Rect? stackPivotBounds;
 
+  /// 让位时面板轮廓是否跟着缩（见 [GlassPopupPresenter.stackScalesPanel]）。
+  final bool stackScalesPanel;
+
   /// 遮罩点击回调（见 [GlassPopupPresenter.onScrimTap]）。
   final void Function(Offset globalPosition)? onScrimTap;
 
@@ -757,6 +770,7 @@ class GlassPopupWidget extends StatelessWidget {
     stackCurve: stackCurve,
     stackShrinkFromAnchor: stackShrinkFromAnchor,
     stackPivotBounds: stackPivotBounds,
+    stackScalesPanel: stackScalesPanel,
     onScrimTap: onScrimTap,
     maskColor: maskColor,
     scrimAlpha: scrimAlpha,

@@ -322,6 +322,102 @@ void main() {
     expect(taps, 1);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('让位可只缩内容：面板轮廓原地不动，行仍朝支点退让', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final anchor = MiuixGlassPopupAnchor();
+    var show = false, stacked = false, scalesPanel = true;
+    late StateSetter update;
+    const panelKey = ValueKey('panel');
+    await tester.pumpWidget(
+      app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return Stack(
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: MiuixGlassIconButton(
+                    anchor: anchor,
+                    onPressed: () {},
+                    child: const Icon(Icons.more_horiz),
+                  ),
+                ),
+                MiuixGlassTransformPopup(
+                  show: show,
+                  anchor: anchor,
+                  anchorContent: const Icon(Icons.more_horiz),
+                  // 宽度锁死 200（minWidth 与 maxWidth 同值）：面板轮廓与内容
+                  // 同宽，让位时行贴面板左边缘，退让幅度可算（5% × 板宽）。
+                  sizing: const MiuixGlassPopupSizing(maxWidth: 200),
+                  stacked: stacked,
+                  stackDuration: const Duration(milliseconds: 200),
+                  stackShrinkFromAnchor: true,
+                  stackScalesPanel: scalesPanel,
+                  onDismissRequest: () {},
+                  surfaceBuilder: (context, shape, child) => ColoredBox(
+                    key: panelKey,
+                    color: const Color(0xFF808080),
+                    child: child,
+                  ),
+                  child: const SizedBox(
+                    width: 200,
+                    height: 240,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('row'),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    update(() => show = true);
+    await tester.pumpAndSettle();
+    final panelOpen = tester.getRect(find.byKey(panelKey));
+    final rowOpen = tester.getRect(find.text('row'));
+    // 入场弹簧收敛在 1 之前一点点（上游容差，实测板宽 199.97 而非 200），
+    // 所以下面所有「5% 板宽」的期望值都从**实测板宽**推，不写死 10 / 12。
+    expect(panelOpen.width, closeTo(200, .1));
+    expect(rowOpen.left, closeTo(panelOpen.left, .01));
+
+    // 上游原行为：面板跟着缩。支点是右上角，所以右边与上边不动，左边与下边收。
+    update(() => stacked = true);
+    await tester.pumpAndSettle();
+    final panelShrunk = tester.getRect(find.byKey(panelKey));
+    expect(panelShrunk.right, closeTo(panelOpen.right, .01));
+    expect(panelShrunk.top, closeTo(panelOpen.top, .01));
+    expect(
+      panelShrunk.left - panelOpen.left,
+      closeTo(panelOpen.width * .05, .01),
+    );
+    expect(
+      panelOpen.bottom - panelShrunk.bottom,
+      closeTo(panelOpen.height * .05, .01),
+    );
+
+    // 只缩内容：面板轮廓逐像素回到未让位时的位置，行仍朝支点退让 5% 板宽。
+    update(() => scalesPanel = false);
+    await tester.pumpAndSettle();
+    final panelFixed = tester.getRect(find.byKey(panelKey));
+    final rowFixed = tester.getRect(find.text('row'));
+    expect(panelFixed.left, closeTo(panelOpen.left, .01));
+    expect(panelFixed.top, closeTo(panelOpen.top, .01));
+    expect(panelFixed.right, closeTo(panelOpen.right, .01));
+    expect(panelFixed.bottom, closeTo(panelOpen.bottom, .01));
+    expect(rowFixed.left - rowOpen.left, closeTo(panelOpen.width * .05, .01));
+    expect(rowFixed.top, lessThan(rowOpen.top));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    anchor.dispose();
+  });
   testWidgets('弹窗关闭期间不能通过键盘再次激活菜单项', (tester) async {
     var show = true, taps = 0;
     await tester.pumpWidget(

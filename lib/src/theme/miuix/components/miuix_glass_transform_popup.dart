@@ -20,6 +20,7 @@ class MiuixGlassTransformPopup extends GlassPopupWidget {
     super.stackCurve,
     super.stackShrinkFromAnchor,
     super.stackPivotBounds,
+    super.stackScalesPanel,
     super.onScrimTap,
     super.maskColor,
     super.gap,
