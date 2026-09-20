@@ -40,6 +40,7 @@ class MiuixGlassSecondaryPopup extends GlassPopupWidget {
     super.stackShrinkFromAnchor,
     super.stackPivotBounds,
     super.stackScalesPanel,
+    super.stackLocksInput,
     super.onScrimTap,
     super.maskColor,
     super.scrimAlpha,
