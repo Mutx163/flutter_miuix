@@ -177,6 +177,13 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
       _back,
       _stack,
     ]);
+    // 出生就带着 `stacked` 的弹层（调用方按需挂载、挂上时让位已经成立，二级面板
+    // 就是这个用法）：让位进度必须**直接落在目标值**上。
+    //
+    // `didUpdateWidget` 只在 `stacked` **发生变化**时驱动 `_stack`，而首次 build
+    // 不算变化 —— 少了这一刀，`_stack` 会永远停在 0：面板不缩、压暗不画，调用方
+    // 传进来的 `stacked` 与 `stackPivotBounds` 全是空转。
+    _stack.value = widget.stacked ? 1 : 0;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.show) _transition(true);

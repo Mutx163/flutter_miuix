@@ -503,6 +503,52 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets('出生即让位的弹层直接落在让位态，不会停在未让位', (tester) async {
+    // `didUpdateWidget` 只在 `stacked` 变化时驱动让位进度，首次 build 不算变化。
+    // 调用方按需挂载二级面板时（挂上那一刻让位已经成立），少了 initState 那一刀
+    // 就会「传了 stacked 却没缩」—— 静默失效，看树也看不出来。
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const panelKey = ValueKey('born-stacked-panel');
+    const anchorBounds = Rect.fromLTWH(100, 300, 200, 44);
+    Widget build({required bool stacked}) => MiuixGlassSecondaryPopup(
+      show: true,
+      anchorBounds: anchorBounds,
+      sizing: const MiuixGlassPopupSizing(maxWidth: 200),
+      stacked: stacked,
+      stackDuration: const Duration(milliseconds: 200),
+      stackPivotBounds: Rect.fromLTWH(
+        anchorBounds.right,
+        anchorBounds.top,
+        0,
+        0,
+      ),
+      maskColor: Colors.transparent,
+      onDismissRequest: () {},
+      surfaceBuilder: (context, shape, child) =>
+          ColoredBox(key: panelKey, color: const Color(0xFF808080), child: child),
+      child: const SizedBox(width: 200, height: 240),
+    );
+
+    await tester.pumpWidget(app(build(stacked: false)));
+    await tester.pumpAndSettle();
+    final open = tester.getRect(find.byKey(panelKey));
+
+    // 换一棵树挂载：这一次出生就带着 stacked。
+    await tester.pumpWidget(app(build(stacked: true)));
+    await tester.pumpAndSettle();
+    final bornStacked = tester.getRect(find.byKey(panelKey));
+    expect(
+      bornStacked.left - open.left,
+      closeTo(open.width * .05, .5),
+      reason: '出生即 stacked 的弹层必须直接落在让位态',
+    );
+    expect(bornStacked.right, closeTo(open.right, .5));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   testWidgets('弹窗关闭期间不能通过键盘再次激活菜单项', (tester) async {
     var show = true, taps = 0;
     await tester.pumpWidget(
