@@ -44,6 +44,7 @@ class GlassPopupPresenter extends StatefulWidget {
     this.stackShrinkFromAnchor = false,
     this.stackPivotBounds,
     this.stackScalesPanel = true,
+    this.stackLocksInput = true,
     this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
@@ -105,6 +106,17 @@ class GlassPopupPresenter extends StatefulWidget {
   /// 置 false 时只有内容跟着让位变换走，卡片轮廓与压暗原地不动。用于调用方
   /// 在同一屏里另摆了一块不参与让位的面板、且两块卡片必须边缘对齐的场景。
   final bool stackScalesPanel;
+
+  /// 让位（[stacked]）时是否**连输入一起让出去**（默认 true = 上游原行为）：
+  /// 面板内容不吃点击 / 焦点 / 无障碍，遮罩点击与返回键也不再关这一层 ——
+  /// 因为让位在上游的语境里只发生在**被压在下面**的那块面板上（一级让给二级），
+  /// 上面压着的那块接管了这些输入。
+  ///
+  /// 但让位变换本身对**浮在上面**的那块面板同样有用：两块面板同宽同边、必须一起
+  /// 缩才不会在接缝处露馅时（见 [MiuixGlassSecondaryPopup] 的说明），浮在上面那块
+  /// 也要缩，却绝不能因此失去交互 —— 它就是当前唯一可点的那层。这种调用方传
+  /// false：只要那份**视觉**让位，输入照旧归自己。
+  final bool stackLocksInput;
 
   /// 遮罩（面板外区域）被点击时的回调，**带全局点击位置**；null = 走
   /// [onDismissRequest]（上游原行为）。
@@ -228,7 +240,14 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
   }
 
   void _requestDismiss() {
-    if (!widget.show || _dismissRequested || widget.stacked) return;
+    // 让位中且让位连输入一起让出去时，这一下（返回键 / ESC / history 弹出）不归
+    // 本层管 —— 归压在上面那层。`stackLocksInput: false` 的调用方（浮在上面、
+    // 只借让位那份视觉的那块面板）照旧能自己关。
+    if (!widget.show ||
+        _dismissRequested ||
+        (widget.stacked && widget.stackLocksInput)) {
+      return;
+    }
     _dismissRequested = true;
     widget.onDismissRequest();
   }
@@ -504,7 +523,9 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         child: rows,
       ),
     );
-    final interactive = widget.show && !widget.stacked;
+    // 让位（`stacked`）默认连内容一起锁住 —— 见 [GlassPopupPresenter.stackLocksInput]。
+    final interactive =
+        widget.show && !(widget.stacked && widget.stackLocksInput);
     rows = ExcludeFocus(
       excluding: !interactive,
       child: ExcludeSemantics(excluding: !interactive, child: rows),
@@ -600,7 +621,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                     gap: widget.gap,
                     padding: widget.contentPadding,
                     direction: Directionality.of(context),
-                    interactive: widget.show && !widget.stacked,
+                    interactive: interactive,
                     insets: EdgeInsets.fromLTRB(
                       media.viewPadding.left,
                       media.viewPadding.top,
@@ -708,6 +729,7 @@ class GlassPopupWidget extends StatelessWidget {
     this.stackShrinkFromAnchor = false,
     this.stackPivotBounds,
     this.stackScalesPanel = true,
+    this.stackLocksInput = true,
     this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
@@ -751,6 +773,9 @@ class GlassPopupWidget extends StatelessWidget {
   /// 让位时面板轮廓是否跟着缩（见 [GlassPopupPresenter.stackScalesPanel]）。
   final bool stackScalesPanel;
 
+  /// 让位时是否连输入一起让出去（见 [GlassPopupPresenter.stackLocksInput]）。
+  final bool stackLocksInput;
+
   /// 遮罩点击回调（见 [GlassPopupPresenter.onScrimTap]）。
   final void Function(Offset globalPosition)? onScrimTap;
 
@@ -778,6 +803,7 @@ class GlassPopupWidget extends StatelessWidget {
     stackShrinkFromAnchor: stackShrinkFromAnchor,
     stackPivotBounds: stackPivotBounds,
     stackScalesPanel: stackScalesPanel,
+    stackLocksInput: stackLocksInput,
     onScrimTap: onScrimTap,
     maskColor: maskColor,
     scrimAlpha: scrimAlpha,

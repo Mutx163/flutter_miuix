@@ -549,6 +549,73 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets('让位只借视觉：stackLocksInput 为假时内容与返回键仍归自己', (tester) async {
+    // `stacked` 在上游语义里是「本面板被压在下面（让位）」，顺手把输入也让出去是
+    // 对的 —— 上面压着的那块接管了点击与返回键。
+    //
+    // 但浮在上面那块面板有时也要借让位变换（两块同宽同边、不一起缩就露接缝，
+    // 见 MiuixGlassSecondaryPopup 的说明）。它要是连输入一起让出去，二级面板的
+    // 行就全点不动了：点击落到遮罩上，读起来变成「点哪都只是收起二级」。
+    // `stackLocksInput: false` 就是「只借视觉、输入还归自己」。
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const anchorBounds = Rect.fromLTWH(100, 300, 200, 44);
+    var taps = 0, dismisses = 0;
+
+    Future<void> mount({required bool locksInput}) async {
+      taps = 0;
+      dismisses = 0;
+      await tester.pumpWidget(
+        app(
+          MiuixGlassSecondaryPopup(
+            show: true,
+            anchorBounds: anchorBounds,
+            sizing: const MiuixGlassPopupSizing(maxWidth: 200),
+            stacked: true,
+            stackDuration: const Duration(milliseconds: 200),
+            stackPivotBounds: Rect.fromLTWH(
+              anchorBounds.right,
+              anchorBounds.top,
+              0,
+              0,
+            ),
+            stackLocksInput: locksInput,
+            maskColor: Colors.transparent,
+            onDismissRequest: () => dismisses++,
+            child: SizedBox(
+              width: 200,
+              height: 240,
+              child: TextButton(
+                onPressed: () => taps++,
+                child: const Text('row'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await mount(locksInput: false);
+    await tester.tap(find.text('row'));
+    await tester.pump();
+    expect(taps, 1, reason: '只借让位视觉的面板，内容必须照旧可点');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(dismisses, 1, reason: '返回键也必须还能关这一层');
+
+    // 对照：上游原行为（默认 true）下，让位就是真的让出去 —— 内容不吃点击。
+    await mount(locksInput: true);
+    await tester.tap(find.text('row'), warnIfMissed: false);
+    await tester.pump();
+    expect(taps, 0, reason: '默认让位连输入一起让出（上游原行为）');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
   testWidgets('弹窗关闭期间不能通过键盘再次激活菜单项', (tester) async {
     var show = true, taps = 0;
     await tester.pumpWidget(
