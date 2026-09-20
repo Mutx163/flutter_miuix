@@ -28,6 +28,7 @@ class GlassPopupLayout extends MultiChildRenderObjectWidget {
     this.onMeasured,
     this.stackProgress = 0,
     this.stackAnchorPivot = false,
+    this.stackPivotBounds,
     this.maskColor = const Color(0x66000000),
   }) : super(children: [panel, content, ?anchorContent]);
   final MiuixGlassPopupMotion motion;
@@ -46,7 +47,21 @@ class GlassPopupLayout extends MultiChildRenderObjectWidget {
   /// 面板通常从锚点（触发按钮 / 被点的行）长出来，锚点所在的那个角就是
   /// 「长出来的那一点」；以它为支点缩放，锚点处的内容在屏幕上几乎不动 ——
   /// 读起来是「原地缩小」。以中心为支点则会整体向内挪。
+  ///
+  /// 只在 [stackPivotBounds] 为空时起作用。
   final bool stackAnchorPivot;
+
+  /// 让位缩放的支点**由调用方指定**：取这个矩形（**窗口全局坐标**）的左上角。
+  ///
+  /// 与非空时的 [stackAnchorPivot] 只差一件事：支点不再受「面板角」这个几何
+  /// 前提限制。典型场景是一级菜单里被点开二级的那一行 —— 让位时该行必须
+  /// 原地不动，而它既不在面板中心、也未必贴任何一个角（见
+  /// `stackAnchorPivot` 之上那条注释说的「几乎不动」，其实按到角的距离成比例
+  /// 地挪）。把那一行自己的矩形传进来，行原地不动，二级面板顶部重复出来的
+  /// 同名标题行才能与它逐像素重合。
+  ///
+  /// 传 null（默认）时行为与此前完全一致。
+  final Rect? stackPivotBounds;
   @override
   RenderObject createRenderObject(BuildContext context) =>
       _RenderGlassPopupLayout(this);
@@ -66,13 +81,21 @@ class _RenderGlassPopupLayout extends RenderBox
   late MiuixGlassPopupFrame frame;
   Rect anchor = Rect.zero;
   Size? _measured;
+
+  /// [GlassPopupLayout.stackPivotBounds] 换算到本节点局部坐标后的矩形（见
+  /// [stackPivot]）。每次布局现算：它来自另一棵子树的窗口坐标，而本节点的
+  /// 祖先链可能在两次布局之间变过。
+  Rect? _stackPivotLocal;
   RenderBox get panel => firstChild!;
   RenderBox get content => childAfter(panel)!;
   RenderBox? get copy => childAfter(content);
-  /// 让位缩放的支点：默认面板中心，[GlassPopupLayout.stackAnchorPivot] 时取
-  /// 「离锚点最近的面板角」。
+  /// 让位缩放的支点，按优先级取：调用方指定的 [GlassPopupLayout.stackPivotBounds]
+  /// 的左上角 → [GlassPopupLayout.stackAnchorPivot] 时「离锚点最近的面板角」 →
+  /// 面板中心。
   Offset get stackPivot {
     final rect = frame.rect;
+    final custom = _stackPivotLocal;
+    if (custom != null) return custom.topLeft;
     if (!data.stackAnchorPivot) return rect.center;
     return Offset(
       anchor.center.dx <= rect.center.dx ? rect.left : rect.right,
@@ -151,6 +174,14 @@ class _RenderGlassPopupLayout extends RenderBox
         : Rect.fromPoints(
             globalToLocal(global.topLeft),
             globalToLocal(global.bottomRight),
+          );
+    // 同 [anchor]：让位支点也是窗口坐标，同处换算。
+    final pivot = data.stackPivotBounds;
+    _stackPivotLocal = pivot == null
+        ? null
+        : Rect.fromPoints(
+            globalToLocal(pivot.topLeft),
+            globalToLocal(pivot.bottomRight),
           );
     frame = miuixGlassPopupFrame(
       motion: data.motion,
