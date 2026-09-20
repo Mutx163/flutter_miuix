@@ -42,6 +42,7 @@ class GlassPopupPresenter extends StatefulWidget {
     this.stackDuration,
     this.stackCurve = Curves.fastOutSlowIn,
     this.stackShrinkFromAnchor = false,
+    this.stackPivotBounds,
     this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
@@ -81,7 +82,21 @@ class GlassPopupPresenter extends StatefulWidget {
   /// 面板从锚点行长出来时，锚点所在的角正是「长出来的那一点」；以它为支点，
   /// 让位期间锚点行在屏幕上几乎不动（二级面板贴在它上面），读起来才是
   /// 「原地缩小」而不是「整体挪走」。
+  ///
+  /// 只在 [stackPivotBounds] 为空时起作用 —— 那个参数能精确指定支点，比
+  /// 「取哪个角」更准（「几乎不动」其实按到角的距离成比例地挪，见该参数）。
   final bool stackShrinkFromAnchor;
+
+  /// 让位缩放的支点由调用方指定：取该矩形（**窗口全局坐标**）的左上角。
+  ///
+  /// 为什么要它：让位时一级面板里**被点开二级的那一行**必须原地不动（二级
+  /// 面板顶部会重复出同名标题行，两份得逐像素重合），而那一行既不在面板
+  /// 中心、也未必贴任何一个面板角。[stackShrinkFromAnchor] 只能选角，行离
+  /// 角有多少距离就挪多少（实测 200 宽的面板上、行离角 150px 时挪了 9px，
+  /// 读起来就是同一行字显示成两份）。把那一行自己的矩形传进来即可归零。
+  ///
+  /// 传 null（默认）时行为与此前完全一致。
+  final Rect? stackPivotBounds;
 
   /// 遮罩（面板外区域）被点击时的回调，**带全局点击位置**；null = 走
   /// [onDismissRequest]（上游原行为）。
@@ -582,6 +597,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                     ),
                     stackProgress: _stack.value.clamp(0, 1),
                     stackAnchorPivot: widget.stackShrinkFromAnchor,
+                    stackPivotBounds: widget.stackPivotBounds,
                     maskColor:
                         widget.maskColor ??
                         (dark ? Colors.black : Colors.white).withValues(
@@ -674,6 +690,7 @@ class GlassPopupWidget extends StatelessWidget {
     this.stackDuration,
     this.stackCurve = Curves.fastOutSlowIn,
     this.stackShrinkFromAnchor = false,
+    this.stackPivotBounds,
     this.onScrimTap,
     this.maskColor,
     this.scrimAlpha,
@@ -711,6 +728,9 @@ class GlassPopupWidget extends StatelessWidget {
   /// 让位缩放支点是否取锚点角（见 [GlassPopupPresenter.stackShrinkFromAnchor]）。
   final bool stackShrinkFromAnchor;
 
+  /// 让位缩放的支点矩形（见 [GlassPopupPresenter.stackPivotBounds]）。
+  final Rect? stackPivotBounds;
+
   /// 遮罩点击回调（见 [GlassPopupPresenter.onScrimTap]）。
   final void Function(Offset globalPosition)? onScrimTap;
 
@@ -736,6 +756,7 @@ class GlassPopupWidget extends StatelessWidget {
     stackDuration: stackDuration,
     stackCurve: stackCurve,
     stackShrinkFromAnchor: stackShrinkFromAnchor,
+    stackPivotBounds: stackPivotBounds,
     onScrimTap: onScrimTap,
     maskColor: maskColor,
     scrimAlpha: scrimAlpha,
