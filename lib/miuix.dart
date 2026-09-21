@@ -95,6 +95,7 @@ export 'src/theme/miuix/components/miuix_top_app_bar.dart';
 
 // ===== HyperOS 4：可选玻璃材质与组件（保留旧版 API） =====
 export 'src/theme/miuix/glass/miuix_glass_decoration.dart';
+export 'src/theme/miuix/glass/miuix_glass_edge_fade.dart';
 export 'src/theme/miuix/glass/miuix_glass_material.dart';
 export 'src/theme/miuix/glass/miuix_glass_motion.dart';
 export 'src/theme/miuix/glass/miuix_glass_navigation_geometry.dart';

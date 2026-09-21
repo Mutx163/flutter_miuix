@@ -123,6 +123,8 @@ MiuixGlassPopupFrame miuixGlassPopupFrame({
       end.width,
       end.height,
     );
+    // 原版几何：从锚点行（含 padding）高度插值到完整面板 —— 用户 2026-09-22
+    // 明确要「原本那个动画」，不要改成零高度起收 / 圆角随高度变。
     final start = Rect.fromLTRB(
       anchor.left,
       anchor.top - padding.top,
