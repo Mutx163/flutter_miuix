@@ -12,6 +12,7 @@ import '../../components/miuix_glass.dart';
 import '../../foundation/miuix_popup_utils.dart';
 import '../../theme/miuix_theme.dart';
 import '../miuix_glass_decoration.dart';
+import '../miuix_glass_edge_fade.dart';
 import '../miuix_glass_material.dart';
 import '../miuix_glass_motion.dart';
 import '../miuix_glass_popup_anchor.dart';
@@ -343,9 +344,13 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
           target,
           kind == MiuixGlassPopupMotion.dropdown
               ? (show ? 50 : 200)
-              : (kind == MiuixGlassPopupMotion.dialog
-                    ? (show ? 80 : 150)
-                    : (show ? 200 : 150)),
+              : kind == MiuixGlassPopupMotion.dialog
+              ? (show ? 80 : 150)
+              // 二级：展开/收起都走 200ms 线性淡入淡出，与几何弹簧同长
+              // 量级，避免「高度收完了透明度还在」或反过来。
+              : kind == MiuixGlassPopupMotion.secondary
+              ? 200
+              : (show ? 200 : 150),
           generation,
         ),
         _linear(
@@ -480,6 +485,9 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         ? 0.0
         : isTransform
         ? ui.lerpDouble(source?.alpha ?? 1, 1, icon)!.clamp(0.0, 1.0)
+        // 二级面板**不要**用 Opacity 包玻璃：alpha<1 时液态面会立刻退成实色
+        // 填充，开合过程中「圆角/材质突然变了」。二级的深浅交给内容 fade +
+        // 几何高度/圆角随进度变化（见 miuixGlassPopupFrame 的 secondary 分支）。
         : (kind == MiuixGlassPopupMotion.dropdown ||
                   kind == MiuixGlassPopupMotion.dialog
               ? fade
@@ -508,11 +516,9 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
       child: Padding(padding: widget.contentPadding, child: widget.child),
     );
     rows = Opacity(
-      opacity: isSecondary
-          ? 1
-          : isTransform
-          ? content
-          : fade,
+      // 二级原先恒为 1：文字/分隔线不参与渐隐。改与 fade 同步，收起时
+      // 先淡出再卸载，衔接一级「添加」行。
+      opacity: isTransform ? content : fade,
       child: ImageFiltered(
         enabled: blur > .01,
         imageFilter: ui.ImageFilter.blur(
@@ -610,7 +616,10 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                   ),
                 ),
                 Positioned.fill(
-                  child: GlassPopupLayout(
+                  // 二级开合时把边缘高光强度交给液态面渐变（见 MiuixGlassEdgeFade）。
+                  child: MiuixGlassEdgeFade(
+                    fade: isSecondary ? fade.clamp(0.0, 1.0) : 1.0,
+                    child: GlassPopupLayout(
                     motion: kind,
                     sizing: widget.sizing,
                     anchor: widget.anchor,
@@ -684,6 +693,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                     ),
                     content: rows,
                     anchorContent: copy,
+                  ),
                   ),
                 ),
               ],

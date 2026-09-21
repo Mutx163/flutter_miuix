@@ -101,6 +101,15 @@ class _RenderGlassPopupLayout extends RenderBox
   /// [stackPivot]）。每次布局现算：它来自另一棵子树的窗口坐标，而本节点的
   /// 祖先链可能在两次布局之间变过。
   Rect? _stackPivotLocal;
+
+  /// 面板实际布局矩形（让位时 = [frame.rect] 朝 [stackPivot] 缩过之后的那块）。
+  ///
+  /// 让位缩放走**布局尺寸**而不是 paint 变换：液态玻璃按子节点布局尺寸 +
+  /// `localToGlobal` 画形状，paint 变变换带不动它；布局缩了，玻璃就按缩后
+  /// 的真实矩形画，与内容同一套几何。内容仍用 paint 变换缩（避免按窄宽度
+  /// 重排文字导致「内部结构变了」）。
+  Rect _panelRect = Rect.zero;
+
   RenderBox get panel => firstChild!;
   RenderBox get content => childAfter(panel)!;
   RenderBox? get copy => childAfter(content);
@@ -146,9 +155,15 @@ class _RenderGlassPopupLayout extends RenderBox
 
   /// 面板的绘制变换：跟着让位时 = 让位变换 + 面板左上角平移；不跟着时只剩
   /// 平移 —— 面板轮廓原地不动（见 [paint] 的两个分支）。
+  /// 面板的绘制变换：布局级让位时面板矩形已是缩过的，绘制只平移；
+  /// 否则按是否叠 paint 让位变换决定（见 [paint]）。
   Matrix4 get panelTransform {
+    final rect = _panelRect == Rect.zero ? frame.rect : _panelRect;
     final local = Matrix4.identity()
-      ..translateByDouble(frame.rect.left, frame.rect.top, 0, 1);
+      ..translateByDouble(rect.left, rect.top, 0, 1);
+    if (data.stackScalesPanel && data.stackProgress > 0) {
+      return local;
+    }
     return data.stackScalesPanel ? (stackTransform..multiply(local)) : local;
   }
   Matrix4 get copyTransform {
@@ -225,7 +240,20 @@ class _RenderGlassPopupLayout extends RenderBox
       padding: data.padding,
       direction: data.direction,
     );
-    panel.layout(BoxConstraints.tight(frame.rect.size), parentUsesSize: true);
+    // 让位：面板按布局朝支点等比缩小（整卡轮廓 + 玻璃同一矩形）。
+    _panelRect = frame.rect;
+    if (data.stackScalesPanel && data.stackProgress > 0) {
+      final s = 1.0 - 0.05 * data.stackProgress.clamp(0.0, 1.0);
+      final p = stackPivot;
+      final r = frame.rect;
+      _panelRect = Rect.fromLTRB(
+        p.dx + (r.left - p.dx) * s,
+        p.dy + (r.top - p.dy) * s,
+        p.dx + (r.right - p.dx) * s,
+        p.dy + (r.bottom - p.dy) * s,
+      );
+    }
+    panel.layout(BoxConstraints.tight(_panelRect.size), parentUsesSize: true);
     copy?.layout(BoxConstraints.tight(anchor.size), parentUsesSize: true);
     if (_measured != content.size) {
       _measured = content.size;
@@ -238,24 +266,14 @@ class _RenderGlassPopupLayout extends RenderBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    // 让位时面板轮廓是否跟着缩（见 [GlassPopupLayout.stackScalesPanel]）。
-    //
-    // 跟着缩（上游原行为）：面板、内容、压暗同处一个让位变换下 —— 整块卡片
-    // 朝支点缩进去。
-    //
-    // 不跟着缩：面板轮廓与压暗原地不动，只有内容单独套一层让位变换，读起来
-    // 是「卡片不动、里面的行朝支点退了一小步」。这一支不再给面板套变换层，
-    // 面板材质（可能带背景滤镜）的采样区因此就是**未缩**的那块轮廓，与画出来
-    // 的卡片一致。
+    // 让位（stackScalesPanel）：面板**布局矩形**已缩过（见 performLayout），
+    // 玻璃按缩后尺寸画；内容用 contentTransform（含 stack 缩放）视觉对齐，
+    // 不按窄宽度重排。不要再对面板套一层 paint stackTransform —— 那是
+    // 「内容在动、玻璃板不动」的老路。
     if (data.stackScalesPanel) {
-      context.pushTransform(needsCompositing, offset, stackTransform, (
-        context,
-        offset,
-      ) {
-        context.paintChild(panel, offset + frame.rect.topLeft);
-        _paintContent(context, offset, contentLocalTransform);
-        _paintStackMask(context, offset);
-      });
+      context.paintChild(panel, offset + _panelRect.topLeft);
+      _paintContent(context, offset, contentTransform);
+      _paintStackMask(context, offset);
     } else {
       context.paintChild(panel, offset + frame.rect.topLeft);
       _paintContent(context, offset, contentTransform);
@@ -271,18 +289,23 @@ class _RenderGlassPopupLayout extends RenderBox
     }
   }
 
-  /// 画内容：先按**面板轮廓**裁，再套 [transform]（内容缩放，面板不跟着让位
-  /// 缩时 [transform] 里还折了让位变换）。
+  /// 画内容：按**当前面板矩形**裁，再套 [transform]。
   void _paintContent(
     PaintingContext context,
     Offset offset,
     Matrix4 transform,
   ) {
+    final rect = data.stackScalesPanel ? _panelRect : frame.rect;
+    final radius =
+        frame.cornerRadius *
+        (data.stackScalesPanel && data.stackProgress > 0
+            ? (1.0 - 0.05 * data.stackProgress.clamp(0.0, 1.0))
+            : 1.0);
     context.pushClipRRect(
       needsCompositing,
       offset,
-      frame.rect,
-      RRect.fromRectAndRadius(frame.rect, Radius.circular(frame.cornerRadius)),
+      rect,
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
       (context, offset) => context.pushTransform(
         needsCompositing,
         offset,
@@ -293,14 +316,17 @@ class _RenderGlassPopupLayout extends RenderBox
     );
   }
 
-  /// 让位期间的压暗，盖在面板轮廓上（跟不跟着缩与面板一致，见 [paint]）。
+  /// 让位期间的压暗，画在**缩后**的面板矩形上。
   void _paintStackMask(PaintingContext context, Offset offset) {
     if (data.stackProgress <= 0) return;
+    final rect = data.stackScalesPanel ? _panelRect : frame.rect;
+    final radius =
+        frame.cornerRadius *
+        (data.stackScalesPanel
+            ? (1.0 - 0.05 * data.stackProgress.clamp(0.0, 1.0))
+            : 1.0);
     context.canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        frame.rect.shift(offset),
-        Radius.circular(frame.cornerRadius),
-      ),
+      RRect.fromRectAndRadius(rect.shift(offset), Radius.circular(radius)),
       Paint()
         ..color = data.maskColor.withValues(
           alpha: data.maskColor.a * data.stackProgress,
@@ -310,7 +336,8 @@ class _RenderGlassPopupLayout extends RenderBox
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    if (!data.interactive || !frame.rect.contains(position)) return false;
+    final rect = data.stackScalesPanel ? _panelRect : frame.rect;
+    if (!data.interactive || !rect.contains(position)) return false;
     return result.addWithPaintTransform(
       transform: contentTransform,
       position: position,
@@ -320,7 +347,8 @@ class _RenderGlassPopupLayout extends RenderBox
   }
 
   @override
-  bool hitTestSelf(Offset position) => frame.rect.contains(position);
+  bool hitTestSelf(Offset position) =>
+      (data.stackScalesPanel ? _panelRect : frame.rect).contains(position);
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
     if (child == content) {
