@@ -616,6 +616,173 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
+  testWidgets('入场显影之前行不吃点击（快速连点不会点进看不见的按钮）', (tester) async {
+    // 行按钮从入场第一帧起就摆好了位置、开了命中，而它的透明度要到入场动画
+    // 末尾才是 1 —— 这段窗口里它完全看不见、却完全可点。快速连点触发按钮时，
+    // 第二下正落在「将来那一行」的位置上，于是直接跳进了那一行对应的页面。
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final anchor = MiuixGlassPopupAnchor();
+    const panelKey = ValueKey('entrance-gate-panel');
+    var show = false, taps = 0, dismisses = 0;
+    late StateSetter update;
+    await tester.pumpWidget(
+      app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return Stack(
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: MiuixGlassIconButton(
+                    anchor: anchor,
+                    onPressed: () => setState(() => show = true),
+                    child: const Icon(Icons.more_horiz),
+                  ),
+                ),
+                MiuixGlassTransformPopup(
+                  show: show,
+                  anchor: anchor,
+                  anchorContent: const Icon(Icons.more_horiz),
+                  sizing: const MiuixGlassPopupSizing(maxWidth: 200),
+                  onDismissRequest: () {
+                    dismisses++;
+                    setState(() => show = false);
+                  },
+                  surfaceBuilder: (context, shape, child) => ColoredBox(
+                    key: panelKey,
+                    color: const Color(0xFF808080),
+                    child: child,
+                  ),
+                  child: SizedBox(
+                    width: 200,
+                    height: 240,
+                    // 铺满整块面板内容的点击面：凡是落在面板里的点击都算「点到了
+                    // 行」，断言因此只取决于「这一层此刻收不收点击」，与行在面板
+                    // 内长什么样、摆在哪无关。
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => taps++,
+                      child: const Center(child: Text('row')),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    update(() => show = true);
+    await tester.pump(); // 覆盖层挂上、入场动画起步
+    await tester.pump(const Duration(milliseconds: 16));
+    // 点「面板此刻所在的位置」：入场刚开始时那块面板还贴着锚点，而内容按同一
+    // 块矩形缩放，所以这一下打的就是**将来那些行**的位置。
+    await tester.tapAt(tester.getCenter(find.byKey(panelKey)));
+    await tester.pump();
+    expect(taps, 0, reason: '行还没显影，点它不该触发任何动作');
+    expect(
+      dismisses,
+      0,
+      reason: '这一下只应被这一层吞掉，不该顺带把菜单关了（点两下 = 关菜单也是误触）',
+    );
+
+    // 显影之后照旧可点：同时证明上面那一拍不是「坐标根本没打中」。
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getCenter(find.byKey(panelKey)));
+    await tester.pump();
+    expect(taps, 1, reason: '显影之后行必须照旧可点');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    anchor.dispose();
+  });
+  testWidgets('收起动画期间锚点立刻能再点（第二下不再被动画吃掉）', (tester) async {
+    // 锚点原先被 `contentHidden` 连输入一起屏蔽，而这个标志要等收起动画播完
+    // 才复位 —— 整段收起动画期间那颗球既看不见、也点不动。用户「点空白收起
+    // 菜单、马上再点按钮重开」时第二下被静默丢掉，读起来是「点了没反应，
+    // 要等一会儿才灵」。视觉仍等动画播完交接（否则真球会与正在飞回的副本同时
+    // 出现），输入从收起第一帧起就归按钮。
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final anchor = MiuixGlassPopupAnchor();
+    var show = false, opens = 0;
+    late StateSetter update;
+    await tester.pumpWidget(
+      app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return Stack(
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: MiuixGlassIconButton(
+                    anchor: anchor,
+                    onPressed: () {
+                      opens++;
+                      setState(() => show = true);
+                    },
+                    child: const Icon(Icons.more_horiz),
+                  ),
+                ),
+                MiuixGlassTransformPopup(
+                  show: show,
+                  anchor: anchor,
+                  anchorContent: const Icon(Icons.more_horiz),
+                  onDismissRequest: () => setState(() => show = false),
+                  child: MiuixGlassPopupItem(
+                    text: 'Transform action',
+                    onPressed: () => setState(() => show = false),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    update(() => show = true);
+    await tester.pumpAndSettle();
+    expect(opens, 0, reason: '这一轮是直接置 show，没走按钮');
+
+    final ball = tester.getCenter(find.byType(MiuixGlassIconButton));
+    update(() => show = false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(anchor.contentHidden, isTrue, reason: '视觉交接仍等收起播完，这一点没变');
+    await tester.tapAt(ball);
+    await tester.pump();
+    expect(opens, 1, reason: '收起动画期间那颗球必须立刻能再点开');
+    expect(
+      anchor.contentHidden,
+      isTrue,
+      reason: '重新打开后仍是弹层自己的副本在扮演这颗球',
+    );
+
+    // 对照：完全收起之后再点本来就能打开 —— 证明上面打的就是那颗按钮的坐标。
+    await tester.pumpAndSettle();
+    expect(find.text('Transform action'), findsOneWidget);
+    update(() => show = false);
+    await tester.pumpAndSettle();
+    expect(anchor.contentHidden, isFalse);
+    await tester.tapAt(ball);
+    await tester.pump();
+    expect(opens, 2, reason: '未隐藏时锚点本来就收点击（对照组）');
+    // 收尾：入场动画里挂着延迟计时器，必须让它跑完再拆树（否则测试框架报
+    // "A Timer is still pending"）。
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    anchor.dispose();
+  });
   testWidgets('弹窗关闭期间不能通过键盘再次激活菜单项', (tester) async {
     var show = true, taps = 0;
     await tester.pumpWidget(

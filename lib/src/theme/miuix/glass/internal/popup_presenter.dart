@@ -511,14 +511,16 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         : kind == MiuixGlassPopupMotion.dialog
         ? 0.0
         : (1 - content) * 40 / media.devicePixelRatio;
+    // 行内容的透明度 = 「这些按钮此刻看得见吗」，入场与收起都按它算：
+    // 二级原先恒为 1（文字 / 分隔线不参与渐隐），改与 fade 同步，收起时先淡出
+    // 再卸载，衔接一级「添加」行。
+    final rowsAlpha = isTransform ? content : fade;
     Widget rows = SingleChildScrollView(
       primary: false,
       child: Padding(padding: widget.contentPadding, child: widget.child),
     );
     rows = Opacity(
-      // 二级原先恒为 1：文字/分隔线不参与渐隐。改与 fade 同步，收起时
-      // 先淡出再卸载，衔接一级「添加」行。
-      opacity: isTransform ? content : fade,
+      opacity: rowsAlpha,
       child: ImageFiltered(
         enabled: blur > .01,
         imageFilter: ui.ImageFilter.blur(
@@ -529,9 +531,22 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         child: rows,
       ),
     );
-    // 让位（`stacked`）默认连内容一起锁住 —— 见 [GlassPopupPresenter.stackLocksInput]。
+    // 内容**没显影就不吃输入**（让位另有自己的门，见
+    // [GlassPopupPresenter.stackLocksInput]）。
+    //
+    // 入场时行按钮从第一帧起就摆好了位置、开了命中，而它的透明度要到入场动画
+    // 末尾才是 1 —— 这段窗口里那几行**完全看不见、却完全可点**。快速连点触发
+    // 按钮时，第二下正落在「将来那一行」的位置上，于是直接跳进了那一行对应的
+    // 页面。与收起期同一个口径：这段窗口只应是视觉过程。
+    //
+    // 判据取行自己的透明度（而不是几何进度 / 时长）：能不能点，取决于用户
+    // 看不看得见。未显影时命中被本层吸收（`GlassPopupLayout.hitTestSelf`）——
+    // 既不会误触内容，也不会穿透到遮罩变成「快速点两下 = 把菜单关了」。
+    const contentVisibleFloor = .999;
     final interactive =
-        widget.show && !(widget.stacked && widget.stackLocksInput);
+        widget.show &&
+        rowsAlpha >= contentVisibleFloor &&
+        !(widget.stacked && widget.stackLocksInput);
     rows = ExcludeFocus(
       excluding: !interactive,
       child: ExcludeSemantics(excluding: !interactive, child: rows),
