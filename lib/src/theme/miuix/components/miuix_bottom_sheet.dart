@@ -460,9 +460,18 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
             ],
           );
           // 没有注入层时不建组：其余用法行为与改动前完全一致。
-          return widget.scrimUnderlay == null
+          final Widget body = widget.scrimUnderlay == null
               ? stack
               : BackdropGroup(child: stack);
+          // 收起期只应是视觉过程：一旦开始收起，这一层（全屏蒙层 + 面板）就不再吃
+          // 输入，点击立刻还给页面 —— 与弹层族（`GlassPopupPresenter` 的外层
+          // `IgnorePointer`）同一口径。
+          //
+          // 为什么必须提前交还：蒙层与窗口层要等退场**弹簧数学收敛**（容差 1e-4）
+          // 才收尾移除。实测面板约 320ms 就滑出屏幕，而状态到约 832ms 才收尾 ——
+          // 中间那 500ms 里蒙层仍是最上层的 opaque 命中区，用户「关掉这个、马上点
+          // 下一个」的第二下会被它静默吃掉（那时 `_requestDismiss` 已是空操作）。
+          return IgnorePointer(ignoring: !widget.show, child: body);
         },
       ),
     );

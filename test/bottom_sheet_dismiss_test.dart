@@ -134,4 +134,78 @@ void main() {
     expect(find.text('确定'), findsNothing, reason: '关闭后窗口层应被移除');
     expect(tester.takeException(), isNull);
   });
+
+  // 回归测试：**收起动画一开始**就得把输入还给底层，不能等弹簧数学收敛。
+  //
+  // 历史 bug：退出用弹簧模拟，蒙层与窗口层要等 TickerFuture 完成才移除；而弹簧
+  // 收敛到容差 1e-4 需要很久 —— 实测面板约 320ms 就滑出屏幕，状态到约 832ms 才
+  // 收尾。中间那 500ms 里全屏蒙层仍是最上层的 opaque 命中区，用户「关掉弹窗、
+  // 马上点下一个」的第二下被静默吃掉（表现为"点了没反应，要等一会儿"）。
+  testWidgets('WindowBottomSheet：收起动画期间底层立刻能点到', (tester) async {
+    var showSheet = false, backgroundTaps = 0;
+
+    await tester.pumpWidget(
+      MiuixSystemTheme(
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              return Scaffold(
+                body: Stack(
+                  children: [
+                    // 底层可点区：收起动画进行中，它就该立刻重新收得到点击。
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => backgroundTaps++,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                    Center(
+                      child: MiuixButton(
+                        onPressed: () => setState(() => showSheet = true),
+                        child: const Text('打开'),
+                      ),
+                    ),
+                    MiuixWindowBottomSheet(
+                      show: showSheet,
+                      onDismissRequest: () =>
+                          setState(() => showSheet = false),
+                      content: MiuixButton(
+                        onPressed: () => setState(() => showSheet = false),
+                        child: const Text('确定'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    expect(find.text('确定'), findsOneWidget, reason: '弹窗应已显示');
+
+    // 收起：这里**不用** pumpAndSettle —— 要的就是"动画还没走完"的那一帧。
+    await tester.tap(find.text('确定'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(
+      find.text('确定'),
+      findsOneWidget,
+      reason: '退场动画还没走完，面板与蒙层都还在树上（只是不该再吃输入）',
+    );
+
+    // 屏幕上方那块空白（不在面板范围内）此时应该已经还给页面。
+    await tester.tapAt(const Offset(200, 40));
+    await tester.pump();
+    expect(backgroundTaps, 1, reason: '一开始收起，底层就该立刻能点到');
+
+    await tester.pumpAndSettle();
+    expect(find.text('确定'), findsNothing, reason: '收完仍然要正常清场');
+    expect(tester.takeException(), isNull);
+  });
 }
