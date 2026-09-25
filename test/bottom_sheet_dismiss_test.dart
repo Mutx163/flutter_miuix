@@ -208,4 +208,115 @@ void main() {
     expect(find.text('确定'), findsNothing, reason: '收完仍然要正常清场');
     expect(tester.takeException(), isNull);
   });
+
+  // 回归测试：**往上拖把手，面板一位都不动**。
+  //
+  // 历史 bug：面板高度由内容决定（Column(mainAxisSize: min) 外面只套了 maxHeight
+  // 的 ConstrainedBox），上面根本没有可展开的空间，可 onVerticalDragUpdate 在
+  // `next < 0` 时给的是 0.1 阻尼而不是钳到 0 —— 面板于是以十分之一速度往上漂，
+  // 底沿离开屏幕，下面露出一条压暗蒙层（真机口径「拉着杆子往上拉，拉上去下面变成
+  // 空白」）。
+  testWidgets('WindowBottomSheet：往上拖把手面板不离开屏幕底沿', (tester) async {
+    var showSheet = false;
+    var dismissRequests = 0;
+
+    await tester.pumpWidget(
+      MiuixSystemTheme(
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              return Scaffold(
+                body: Center(
+                  child: MiuixButton(
+                    onPressed: () => setState(() => showSheet = true),
+                    child: const Text('打开'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    // 常驻的 WindowBottomSheet 自己往根覆盖层插条目（与本仓承载壳同一形态），
+    // 所以它从一开始就在树里，`show` 只是翻开关。
+    await tester.pumpWidget(
+      MiuixSystemTheme(
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              return Scaffold(
+                body: Stack(
+                  children: [
+                    MiuixButton(
+                      onPressed: () => setState(() => showSheet = true),
+                      child: const Text('打开'),
+                    ),
+                    MiuixWindowBottomSheet(
+                      show: showSheet,
+                      onDismissRequest: () {
+                        dismissRequests++;
+                        setState(() => showSheet = false);
+                      },
+                      content: const SizedBox(
+                        key: ValueKey('panel-content'),
+                        width: 200,
+                        height: 120,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MiuixWindowBottomSheet), findsOneWidget);
+
+    // 面板里那块内容：它的下沿原本就贴着屏幕底沿。
+    final content = find.byKey(const ValueKey('panel-content'));
+    expect(content, findsOneWidget);
+    final resting = tester.getRect(content);
+    expect(
+      resting.bottom,
+      moreOrLessEquals(
+        tester.view.physicalSize.height / tester.view.devicePixelRatio,
+        epsilon: 0.5,
+      ),
+      reason: '前置条件：面板贴底，底沿 = 屏幕底沿',
+    );
+
+    // 把手是面板顶部那条 24dp 横条（无标题时下面还有 18dp 的空行）。
+    final handle = Offset(resting.center.dx, resting.top - 30);
+    final gesture = await tester.startGesture(handle);
+    await gesture.moveBy(const Offset(0, -20));
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, -220));
+    await tester.pump();
+
+    expect(
+      tester.getRect(content).bottom,
+      moreOrLessEquals(resting.bottom, epsilon: 0.5),
+      reason: '面板底沿必须一直贴着屏幕底沿，往上拖不许把它抬起来',
+    );
+    expect(
+      tester.getRect(content).top,
+      moreOrLessEquals(resting.top, epsilon: 0.5),
+      reason: '内容也不许跟着往上走',
+    );
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(dismissRequests, 0, reason: '往上拖不是「收起」手势');
+    expect(content, findsOneWidget, reason: '面板必须还在');
+    expect(tester.takeException(), isNull);
+  });
 }
