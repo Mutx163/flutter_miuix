@@ -559,8 +559,20 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
           details.globalPosition,
         );
         double next = _dragOffset + details.delta.dy;
-        if (next < 0 || (!widget.allowDismiss && next > 0)) {
+        // 往上拖必须**一位都不动**：面板高度由内容决定（`Column(mainAxisSize: min)`
+        // 外面只套了 maxHeight 的 `ConstrainedBox`），上面没有可展开的空间，于是
+        // 任何向上的位移都会把面板整体抬离屏幕底沿，在它下面露出一条蒙层 ——
+        // 用户口径「拉着杆子往上拉，拉上去下面变成空白」（2026-09-25）。
+        // 原先是 `next < 0` 时给 0.1 阻尼，等于允许面板漂在屏幕中间。
+        if (next < 0) {
+          next = 0;
+        }
+        // `allowDismiss == false` 时往下拖只给 0.1 阻尼：能拖、但拖不走。
+        if (!widget.allowDismiss && next > 0) {
           next = _dragOffset + details.delta.dy * 0.1;
+          if (next < 0) {
+            next = 0;
+          }
         }
         setState(() => _dragOffset = next);
         _markWindowEntryDirty();
