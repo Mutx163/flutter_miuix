@@ -52,6 +52,7 @@ class MiuixOverlayBottomSheet extends StatelessWidget {
     this.allowDismiss = true,
     this.enableNestedScroll = true,
     this.renderInRootScaffold = true,
+    this.dragHandleOverlaysContent = false,
     this.dimColor,
     this.surfaceBuilder,
     this.scrimUnderlay,
@@ -84,6 +85,10 @@ class MiuixOverlayBottomSheet extends StatelessWidget {
   final bool allowDismiss;
   final bool enableNestedScroll;
   final bool renderInRootScaffold;
+
+  /// 把手条是否**悬浮**在内容之上（见 [_MiuixBottomSheetLayout] 同名字段；默认假 = 原行为）。
+  final bool dragHandleOverlaysContent;
+
   final Widget content;
 
   @override
@@ -102,6 +107,7 @@ class MiuixOverlayBottomSheet extends StatelessWidget {
     insideMargin: insideMargin,
     defaultWindowInsetsPadding: defaultWindowInsetsPadding,
     dragHandleColor: dragHandleColor,
+    dragHandleOverlaysContent: dragHandleOverlaysContent,
     allowDismiss: allowDismiss,
     enableNestedScroll: enableNestedScroll,
     renderInRootScaffold: renderInRootScaffold,
@@ -131,6 +137,7 @@ class MiuixWindowBottomSheet extends StatelessWidget {
     this.insideMargin = MiuixBottomSheetDefaults.insideMargin,
     this.defaultWindowInsetsPadding = true,
     this.dragHandleColor,
+    this.dragHandleOverlaysContent = false,
     this.allowDismiss = true,
     this.enableNestedScroll = true,
     this.dimColor,
@@ -163,6 +170,10 @@ class MiuixWindowBottomSheet extends StatelessWidget {
   final Size insideMargin;
   final bool defaultWindowInsetsPadding;
   final Color? dragHandleColor;
+
+  /// 把手条是否**悬浮**在内容之上（见 [_MiuixBottomSheetLayout] 同名字段；默认假 = 原行为）。
+  final bool dragHandleOverlaysContent;
+
   final bool allowDismiss;
   final bool enableNestedScroll;
   final Widget content;
@@ -183,6 +194,7 @@ class MiuixWindowBottomSheet extends StatelessWidget {
     insideMargin: insideMargin,
     defaultWindowInsetsPadding: defaultWindowInsetsPadding,
     dragHandleColor: dragHandleColor,
+    dragHandleOverlaysContent: dragHandleOverlaysContent,
     allowDismiss: allowDismiss,
     enableNestedScroll: enableNestedScroll,
     renderInRootScaffold: true,
@@ -210,6 +222,7 @@ class _MiuixBottomSheetLayout extends StatefulWidget {
     required this.insideMargin,
     required this.defaultWindowInsetsPadding,
     required this.dragHandleColor,
+    required this.dragHandleOverlaysContent,
     required this.allowDismiss,
     required this.enableNestedScroll,
     required this.renderInRootScaffold,
@@ -256,6 +269,10 @@ class _MiuixBottomSheetLayout extends StatefulWidget {
   final bool enableNestedScroll;
   final bool renderInRootScaffold;
   final bool windowLevel;
+
+  /// 把手条是否**悬浮**在内容之上（见本类字段说明；默认假 = 原行为）。
+  final bool dragHandleOverlaysContent;
+
   final Widget content;
 
   @override
@@ -484,28 +501,45 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
     final ShapeBorder shape = _TopSquircleBorder(
       cornerRadius: widget.cornerRadius,
     );
+    final Widget contentBox = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.insideMargin.width,
+      ),
+      child: MiuixDismissScope(
+        onDismissRequest: widget.onDismissRequest ?? () {},
+        child: widget.content,
+      ),
+    );
+    // 把手悬浮在内容**之上**（见 [dragHandleOverlaysContent]）：`Positioned` 不占面板高度，
+    // 于是内容从面板上沿起、可以一直滚到把手底下（顶部渐变模糊才有东西可糊）。
+    // 有标题行时**不走**这条路 —— 悬浮的把手会盖住标题，那类弹窗维持原样。
+    final bool floatHandle = widget.dragHandleOverlaysContent && !_hasTitleRow;
     final Widget body = Padding(
       padding: EdgeInsets.only(
         bottom: media.bottom + widget.insideMargin.height,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _dragHandle(context),
-          _titleRow(context),
-          Flexible(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: widget.insideMargin.width,
-              ),
-              child: MiuixDismissScope(
-                onDismissRequest: widget.onDismissRequest ?? () {},
-                child: widget.content,
-              ),
+      child: floatHandle
+          ? Stack(
+              children: <Widget>[
+                contentBox,
+                // 排在末位：绘制与命中都在内容**之前**，所以这 24px 里的竖向拖动仍然
+                // 归把手（否则会被内容的滚动视图抢走，面板直接拖不动）。
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _dragHandle(context),
+                ),
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _dragHandle(context),
+                _titleRow(context),
+                Flexible(child: contentBox),
+              ],
             ),
-          ),
-        ],
-      ),
     );
     // 注入面拿到的是**真实面板内容**（把手 + 标题行 + 内容）与上游算好的形状，
     // 它返回的面板原样取代下面这块实底 `ShapeDecoration`。
@@ -613,10 +647,14 @@ class _MiuixBottomSheetLayoutState extends State<_MiuixBottomSheetLayout>
     );
   }
 
+  /// 标题行是否有实际内容（标题 / 两侧按钮至少有一个）。
+  bool get _hasTitleRow =>
+      widget.title != null ||
+      widget.startAction != null ||
+      widget.endAction != null;
+
   Widget _titleRow(BuildContext context) {
-    if (widget.title == null &&
-        widget.startAction == null &&
-        widget.endAction == null) {
+    if (!_hasTitleRow) {
       return const SizedBox(height: 18);
     }
     return Padding(
