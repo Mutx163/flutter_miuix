@@ -5,17 +5,28 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter/foundation.dart';
 
-/// 对应 Kotlin GlassColorBlendMode；顺序与 OS4 blend shader 的 id 一致。
+/// 对应 Kotlin GlassColorBlendMode；**声明顺序即 OS4 blend shader 的 id**
+/// （`mode.index` 直接喂给 shader），新增模式只能往后追加。
 enum MiuixGlassColorBlendMode {
-  srcOver,
-  plusDarker,
-  plusLighter,
-  softLight,
-  hardLight,
-  overlay,
-  luminosity,
-  colorDodge,
-  colorBurn,
+  srcOver(BlendMode.srcOver),
+  plusDarker(BlendMode.multiply),
+  plusLighter(BlendMode.plus),
+  softLight(BlendMode.softLight),
+  hardLight(BlendMode.hardLight),
+  overlay(BlendMode.overlay),
+  luminosity(BlendMode.luminosity),
+  colorDodge(BlendMode.colorDodge),
+  colorBurn(BlendMode.colorBurn);
+
+  const MiuixGlassColorBlendMode(this.fallback);
+
+  /// blend shader 不可用时（asset 缺失 / 后端不支持 runtime shader）退回的原生
+  /// [BlendMode]。九种里七种有一一对应；plusDarker / plusLighter 是源端的
+  /// alpha 感知变体，取观感最近的 multiply / plus。
+  ///
+  /// 有了它，无 shader 的设备拿到的仍是「模糊背景 + 混色层」的真玻璃，
+  /// 而不是一块实色圆片。
+  final BlendMode fallback;
 }
 
 /// 对应 Kotlin GlassColorLayer，颜色采用非预乘 RGBA。
@@ -24,6 +35,16 @@ class MiuixGlassColorLayer {
   const MiuixGlassColorLayer(this.color, this.mode);
   final Color color;
   final MiuixGlassColorBlendMode mode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MiuixGlassColorLayer &&
+          other.color == color &&
+          other.mode == mode;
+
+  @override
+  int get hashCode => Object.hash(color, mode);
 }
 
 /// 对应 Kotlin GlassMaterial：模糊半径与至多三层独立混色。
@@ -47,6 +68,22 @@ class MiuixGlassMaterial {
     second: second,
     third: third,
   );
+
+  // 值相等是性能要件，不只是礼貌：_RenderGlass 把 material 放进纹理缓存的 key，
+  // GlassBarScope 也按它决定要不要通知子树。用身份比较的话，任何 `copyWith`
+  // 出来的等价材质都会让缓存全盘失效——顶栏每帧重建一个材质实例，玻璃按钮就
+  // 每帧重跑一次「离屏模糊 + 两趟混色 + toImageSync」，滚动直接变成幻灯片。
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MiuixGlassMaterial &&
+          other.blurRadius == blurRadius &&
+          other.first == first &&
+          other.second == second &&
+          other.third == third;
+
+  @override
+  int get hashCode => Object.hash(blurRadius, first, second, third);
 }
 
 /// 对应 Kotlin GlassMaterials，逐值保留源端的颜色层与 blend mode。

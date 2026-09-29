@@ -90,7 +90,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
       _dismissRequested = false,
       _previewing = false;
   int _generation = 0;
-  bool get _reduce => MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+  bool get _reduce => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
   bool get _hideAnchor =>
       widget.motion == MiuixGlassPopupMotion.transform ||
       widget.motion == MiuixGlassPopupMotion.dropdown;
@@ -330,7 +330,9 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         dark = c.background.computeLuminance() < .5;
     final kind = widget.motion, v = widget.visuals;
     final source = (widget.materialAnchor ?? widget.anchor)?.surface;
-    final media = MediaQuery.of(context), back = 1 - _back.value.clamp(0, 1);
+    final dpr = MediaQuery.devicePixelRatioOf(context),
+        viewPadding = MediaQuery.viewPaddingOf(context),
+        back = 1 - _back.value.clamp(0, 1);
     final progress = _bounds.value * back, position = _center.value * back;
     final fade = _fade.value.clamp(0.0, 1.0) * back,
         content = _content.value.clamp(0.0, 1.0) * back;
@@ -363,14 +365,14 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
               ? fade
               : 1.0);
     final blur = isTransform
-        ? (1 - content) * 50 / media.devicePixelRatio
+        ? (1 - content) * 50 / dpr
         : isSecondary
         ? 0.0
         : kind == MiuixGlassPopupMotion.dropdown
         ? (widget.show ? 0.0 : (1 - fade) * 30)
         : kind == MiuixGlassPopupMotion.dialog
         ? 0.0
-        : (1 - content) * 40 / media.devicePixelRatio;
+        : (1 - content) * 40 / dpr;
     Widget rows = SingleChildScrollView(
       primary: false,
       child: Padding(padding: widget.contentPadding, child: widget.child),
@@ -402,7 +404,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
         widget.anchorContent != null &&
         (!widget.simplified || !widget.show || _previewing) &&
         icon < .999) {
-      final blur = 50 * icon / media.devicePixelRatio;
+      final blur = 50 * icon / dpr;
       copy = ExcludeSemantics(
         child: IgnorePointer(
           child: Opacity(
@@ -465,12 +467,12 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
                     direction: Directionality.of(context),
                     interactive: widget.show && !widget.stacked,
                     insets: EdgeInsets.fromLTRB(
-                      media.viewPadding.left,
-                      media.viewPadding.top,
-                      media.viewPadding.right,
+                      viewPadding.left,
+                      viewPadding.top,
+                      viewPadding.right,
                       math.max(
-                        media.viewPadding.bottom,
-                        media.viewInsets.bottom,
+                        viewPadding.bottom,
+                        MediaQuery.viewInsetsOf(context).bottom,
                       ),
                     ),
                     stackProgress: _stack.value.clamp(0, 1),

@@ -326,11 +326,13 @@ MiuixListPopupLayoutInfo computeListPopupLayoutInfo(
   required Rect parentBounds,
   required Size popupContentSize,
 }) {
-  final media = MediaQuery.of(context);
+  final Size mediaSize = MediaQuery.sizeOf(context);
+  final EdgeInsets mediaViewPadding = MediaQuery.viewPaddingOf(context);
+  final EdgeInsets mediaPadding = MediaQuery.paddingOf(context);
   final direction = Directionality.of(context);
-  final containerSize = media.size;
-  final viewPadding = media.viewPadding;
-  final padding = media.padding;
+  final containerSize = mediaSize;
+  final viewPadding = mediaViewPadding;
+  final padding = mediaPadding;
   final windowBounds = Rect.fromLTRB(
     viewPadding.left,
     padding.top,

@@ -288,13 +288,15 @@ class _MiuixListPopupLayoutState extends State<_MiuixListPopupLayout>
   ) => child;
 
   Widget _buildHostedContent(BuildContext sourceContext) {
-    final MediaQueryData media = MediaQuery.of(sourceContext);
+    final Size mediaSize = MediaQuery.sizeOf(sourceContext);
+    final EdgeInsets mediaViewPadding = MediaQuery.viewPaddingOf(sourceContext);
+    final EdgeInsets mediaPadding = MediaQuery.paddingOf(sourceContext);
     final TextDirection direction = Directionality.of(sourceContext);
     final Rect windowBounds = Rect.fromLTRB(
-      media.viewPadding.left,
-      media.padding.top,
-      media.size.width - media.viewPadding.right,
-      media.size.height - media.padding.bottom,
+      mediaViewPadding.left,
+      mediaPadding.top,
+      mediaSize.width - mediaViewPadding.right,
+      mediaSize.height - mediaPadding.bottom,
     );
     final EdgeInsets margin = _positionProvider.margins.resolve(direction);
     final double availableHeight =

@@ -32,3 +32,6 @@ doc/
 
 # --- npm-distributed AI agent skill (published to npm, not part of the Dart package) ---
 skill/
+
+# --- Local agent notes (not part of the package) ---
+AGENTS.md

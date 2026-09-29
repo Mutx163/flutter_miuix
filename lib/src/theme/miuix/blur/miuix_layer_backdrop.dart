@@ -25,16 +25,20 @@ class MiuixLayerBackdropCapture extends SingleChildRenderObjectWidget {
   const MiuixLayerBackdropCapture({
     super.key,
     required this.backdrop,
+    this.pixelRatio,
     required Widget super.child,
-  });
+  }) : assert(
+         pixelRatio == null || (pixelRatio > 0 && pixelRatio < double.infinity),
+       );
 
   final MiuixLayerBackdrop backdrop;
+  final double? pixelRatio;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderLayerBackdropCapture(
       backdrop: backdrop,
-      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      devicePixelRatio: pixelRatio ?? MediaQuery.devicePixelRatioOf(context),
     );
   }
 
@@ -42,7 +46,17 @@ class MiuixLayerBackdropCapture extends SingleChildRenderObjectWidget {
   void updateRenderObject(BuildContext context, RenderObject renderObject) {
     (renderObject as _RenderLayerBackdropCapture)
       ..backdrop = backdrop
-      ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+      ..devicePixelRatio = pixelRatio ?? MediaQuery.devicePixelRatioOf(context);
+  }
+}
+
+class _BackdropContentLayer extends OffsetLayer {
+  _BackdropContentLayer(this.onContentChanged);
+  final VoidCallback onContentChanged;
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    super.addToScene(builder);
+    onContentChanged();
   }
 }
 
@@ -89,9 +103,19 @@ class _RenderLayerBackdropCapture extends RenderProxyBox {
     super.detach();
   }
 
+  final _contentLayer = LayerHandle<_BackdropContentLayer>();
+  bool _capturing = false;
+
+  @override
+  void dispose() {
+    _contentLayer.layer = null;
+    super.dispose();
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
-    super.paint(context, offset);
+    _contentLayer.layer ??= _BackdropContentLayer(_scheduleCapture);
+    context.pushLayer(_contentLayer.layer!, super.paint, offset);
     // 本节点是重绘边界，super.paint 会把子树画进本节点的 OffsetLayer([layer])。
     // 在帧绘制结束后异步快照该图层。
     _scheduleCapture();
@@ -100,7 +124,13 @@ class _RenderLayerBackdropCapture extends RenderProxyBox {
   bool _captureScheduled = false;
 
   void _scheduleCapture() {
-    if (_captureScheduled || !hasSize || size.isEmpty) return;
+    if (_capturing ||
+        !attached ||
+        _captureScheduled ||
+        !hasSize ||
+        size.isEmpty) {
+      return;
+    }
     _captureScheduled = true;
     // 帧结束后再快照，避免在 paint 阶段改状态触发同帧重入。
     SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -114,12 +144,17 @@ class _RenderLayerBackdropCapture extends RenderProxyBox {
     final offsetLayer = layer;
     if (offsetLayer is! OffsetLayer) return;
     final dpr = _devicePixelRatio;
-    // 对本重绘边界图层做同步出图（bounds 用本地 paintBounds，pixelRatio=dpr）。
-    final ui.Image image = offsetLayer.toImageSync(
-      Offset.zero & size,
-      pixelRatio: dpr,
-    );
-    final global = localToGlobal(Offset.zero);
-    _backdrop.updateSnapshot(image, global, dpr);
+    _capturing = true;
+    try {
+      // 对本重绘边界图层做同步出图（bounds 用本地 paintBounds，pixelRatio=dpr）。
+      final ui.Image image = offsetLayer.toImageSync(
+        Offset.zero & size,
+        pixelRatio: dpr,
+      );
+      final global = localToGlobal(Offset.zero);
+      _backdrop.updateSnapshot(image, global, dpr);
+    } finally {
+      _capturing = false;
+    }
   }
 }

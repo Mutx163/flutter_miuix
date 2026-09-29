@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.0
+
+### 新增
+
+- **`MiuixGlassNavigationItem.isAction`**：导航栏可放置「动作项」（如搜索、新建），点击只触发 `onSelect`，不移动选中指示器、不改变选中态。
+- **`MiuixGlassTopAppBar.bandHeightFactor` / `bandBlurRadius`**：可调节顶栏模糊带的高度比例（默认 1）与实时高斯模糊半径（默认 24，0 关闭模糊）。
+- **`MiuixLayerBackdropCapture.pixelRatio`**：可覆盖背景快照的像素比，降低快照分辨率以换取性能。
+- **`MiuixGlassRendering.loadError` / `loadedPrograms` / `has()`**：暴露 OS4 shader 加载状态，便于排查「玻璃不够通透」类降级问题。
+
+### 改进
+
+- **OS4 玻璃 shader 逐个降级**：单个 shader 加载失败不再拖垮全部玻璃效果；blend shader 缺席时改用原生 `BlendMode` 混色（`MiuixGlassColorBlendMode.fallback`），无 runtime shader 的设备也能得到「模糊背景 + 混色层」的真玻璃，而非一块实色。
+- **玻璃模糊改走 `saveLayer`**：修复部分后端（尤其 Impeller）上 `drawImageRect` 的 image filter 静默失效、玻璃里能看清背后文字的问题。
+- **玻璃淡入更柔和**：不做仿生着色的表面（栏、菜单、栏内按钮）改为整层 alpha 淡入，消除「硬边模糊圆片先冒出、颜色再补上」的延迟感。
+- **顶栏模糊带**：默认色调渐变改为半透明，下方叠加真实高斯模糊并在下缘平滑淡出，更贴近原生 HyperOS 4。
+- **导航栏拖拽**：滑块按手指位置直接跟随；松手在栏内才提交选择；按下态仅重建必要子树。
+- **性能**：玻璃材质按值比较并缓存栏内材质实例，避免滚动时逐帧丢纹理缓存；背景快照只在内容真正变化时重新截取；多处 `MediaQuery.of` 改为细粒度 `sizeOf` / `paddingOf` 等，减少无关重建。
+- **无障碍**：颜色调色板补充 `increasedValue` / `decreasedValue` 语义。
+
+### 测试
+
+- 新增 OS4 玻璃交互与渲染回归测试（shader 降级、快照复用、导航拖拽等）。
+
 ## 1.2.0
 
 ### 新增

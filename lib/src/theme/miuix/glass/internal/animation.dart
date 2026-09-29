@@ -67,7 +67,7 @@ class _GlassSpringBuilderState extends State<GlassSpringBuilder>
     _controller,
     widget.value,
     widget.spring ?? MiuixGlassMotion.standard,
-    disableAnimations: MediaQuery.maybeOf(context)?.disableAnimations ?? false,
+    disableAnimations: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
   );
   @override
   void dispose() {

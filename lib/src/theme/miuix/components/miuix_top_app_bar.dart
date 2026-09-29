@@ -754,9 +754,8 @@ class _MiuixTopAppBarState extends State<MiuixTopAppBar>
 
     _scheduleMeasure();
 
-    final mediaQuery = MediaQuery.of(context);
     final horizontalPadding = widget.defaultWindowInsetsPadding
-        ? mediaQuery.padding.horizontal
+        ? MediaQuery.paddingOf(context).horizontal
         : 0.0;
 
     final navWidth = _navigationIconSize?.width ?? 0.0;
@@ -764,7 +763,8 @@ class _MiuixTopAppBarState extends State<MiuixTopAppBar>
     final actionsWidth = _actionsSize?.width ?? 0.0;
     final actionsHeight = _actionsSize?.height ?? 0.0;
 
-    final contentWidth = mediaQuery.size.width - horizontalPadding * 2;
+    final contentWidth =
+        MediaQuery.sizeOf(context).width - horizontalPadding * 2;
 
     Widget body = AnimatedBuilder(
       animation: Listenable.merge([
@@ -1178,9 +1178,8 @@ class MiuixSmallTopAppBar extends StatelessWidget {
       });
     }
 
-    final mediaQuery = MediaQuery.of(context);
     final horizontalPadding = defaultWindowInsetsPadding
-        ? mediaQuery.padding.horizontal
+        ? MediaQuery.paddingOf(context).horizontal
         : 0.0;
 
     final hasSubtitle = subtitle.isNotEmpty;

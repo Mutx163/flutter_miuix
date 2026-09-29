@@ -34,20 +34,43 @@ class MiuixGlassRendering {
   static final Map<String, ui.FragmentProgram> _programs = {};
   static Future<void>? _loading;
   static bool get isLoaded => _programs.length == miuixGlassUniforms.length;
+
+  /// 加载失败的原因；`null` 表示没失败过。shader 缺失会静默把玻璃降级成
+  /// 「模糊 + 原生混色」，看起来只是「不够通透」而不是报错，所以把原因留在
+  /// 这里供排查（另见 [loadedPrograms]）。
+  static Object? loadError;
+
+  /// 已成功加载的 shader 名字，用来判断能降级到哪一档。
+  static Iterable<String> get loadedPrograms => _programs.keys;
+  static bool has(String name) => _programs.containsKey(name);
+
   static Future<void> load() => _loading ??= _load();
   static Future<void> _load() async {
+    // 逐个捕获：一个 shader 编不过不该把其余八个一起拖下水——mask/stroke 挂了
+    // 也还能靠 blend 画出真玻璃。
+    Object? failure;
     for (final name in miuixGlassUniforms.keys) {
+      if (_programs.containsKey(name)) continue;
       final asset = 'shaders/miuix_os4_$name.frag';
-      ui.FragmentProgram program;
       try {
-        program = await ui.FragmentProgram.fromAsset(
-          'packages/flutter_miuix/$asset',
-        );
-      } catch (_) {
-        program = await ui.FragmentProgram.fromAsset(asset);
+        ui.FragmentProgram program;
+        try {
+          program = await ui.FragmentProgram.fromAsset(
+            'packages/flutter_miuix/$asset',
+          );
+        } catch (_) {
+          program = await ui.FragmentProgram.fromAsset(asset);
+        }
+        _programs[name] = program;
+      } catch (error) {
+        failure ??= error;
+        assert(() {
+          debugPrint('Miuix OS4: shader "$asset" unavailable → $error');
+          return true;
+        }());
       }
-      _programs[name] = program;
     }
+    loadError = failure;
   }
 }
 
@@ -87,24 +110,17 @@ class MiuixGlass extends StatefulWidget {
 }
 
 class _MiuixGlassState extends State<MiuixGlass> {
+  /// shader 的加载**已经结束**（成功与否逐个看 [MiuixGlassRendering.has]）。
+  /// 结束前所有 shader 路径都按缺失处理，结束后重绘一次。
   bool _ready = false;
   @override
   void initState() {
     super.initState();
     _ready = MiuixGlassRendering.isLoaded;
     if (_ready) return;
-    MiuixGlassRendering.load().then(
-      (_) {
-        if (mounted) setState(() => _ready = true);
-      },
-      onError: (Object error, StackTrace stack) {
-        // Unsupported backends still get an accessible solid surface.
-        assert(() {
-          debugPrint('Miuix OS4 shader fallback: $error');
-          return true;
-        }());
-      },
-    );
+    MiuixGlassRendering.load().whenComplete(() {
+      if (mounted) setState(() => _ready = true);
+    });
   }
 
   @override
@@ -250,6 +266,10 @@ class _RenderGlass extends RenderProxyBox {
     );
   }
 
+  /// 该 shader 可用（asset 已加载且加载流程已结束）。逐个判断而不是一刀切
+  /// `data.ready`：折射挂了不该连混色一起放弃，否则玻璃直接塌成一块实色。
+  bool has(String key) => data.ready && MiuixGlassRendering.has(key);
+
   ui.FragmentShader shader(String key) => _shaders.putIfAbsent(
     key,
     () => MiuixGlassRendering._programs[key]!.fragmentShader(),
@@ -316,11 +336,16 @@ class _RenderGlass extends RenderProxyBox {
     return result;
   }
 
-  ui.Image prepare(double padding, double ratio) {
+  /// [_texture] 里是否已经混过色。blend shader 缺席时只做模糊，混色留给
+  /// [paint] 用原生 [BlendMode] 补。
+  bool _textureBlended = false;
+
+  ui.Image prepare(double padding, double ratio, double alpha) {
     final cfg = data.config, source = backdrop!, image = source.snapshot!;
     final global = localToGlobal(Offset.zero),
         origin = global - source.globalOffset!;
     final blur = cfg.material?.blurRadius ?? data.style.blur.small / 3;
+    final blendable = has('blend');
     final key = (
       image,
       origin,
@@ -329,7 +354,8 @@ class _RenderGlass extends RenderProxyBox {
       blur,
       cfg.material,
       cfg.underlayMaterial,
-      cfg.alpha,
+      alpha,
+      blendable,
     );
     if (_textureKey == key && _texture != null) return _texture!;
     final width = math.max(1, ((size.width + 2 * padding) * ratio).ceil());
@@ -342,35 +368,66 @@ class _RenderGlass extends RenderProxyBox {
       image.width / source.pixelRatio,
       image.height / source.pixelRatio,
     );
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      dest,
+    // 模糊走 saveLayer 而不是 `Paint.imageFilter`：drawImageRect 上的 image
+    // filter 在各后端（尤其 Impeller）不是稳定语义，静默失效的表现正好是
+    // 「玻璃里能看清背后的字」。saveLayer + imageFilter 就是 ImageFiltered 的
+    // 语义，各后端一致。sigma 沿用源端 BLUR_RADIUS_TO_SIGMA = .45，单位是
+    // 逻辑像素（CTM 里的 ratio 会把它一并缩到纹理分辨率）。
+    final layerBounds = Rect.fromLTWH(0, 0, width / ratio, height / ratio);
+    canvas.saveLayer(
+      layerBounds,
       Paint()
-        ..filterQuality = FilterQuality.medium
         ..imageFilter = ui.ImageFilter.blur(
           sigmaX: blur * .45,
           sigmaY: blur * .45,
           tileMode: TileMode.clamp,
         ),
     );
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      dest,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+    canvas.restore();
     final picture = recorder.endRecording();
     var result = picture.toImageSync(width, height);
     picture.dispose();
-    for (final material in [cfg.underlayMaterial, cfg.material]) {
-      if (material == null) continue;
-      final next = blend(
-        result,
-        material,
-        identical(material, cfg.underlayMaterial) ? 1 : cfg.alpha,
-      );
-      result.dispose();
-      result = next;
+    if (blendable) {
+      // 顺序固定：先父级 actionBar 遮罩（永远满强度），再本体材质。
+      for (var i = 0; i < 2; i++) {
+        final material = i == 0 ? cfg.underlayMaterial : cfg.material;
+        if (material == null) continue;
+        final next = blend(result, material, i == 0 ? 1 : alpha);
+        result.dispose();
+        result = next;
+      }
     }
+    _textureBlended = blendable;
     _texture?.dispose();
     _texture = result;
     _textureKey = key;
     return result;
+  }
+
+  /// blend shader 缺席时的混色：把材质的颜色层用原生 [BlendMode] 直接盖在
+  /// 已模糊的背景上。七种模式有一一对应，另两种取最近似（见
+  /// [MiuixGlassColorBlendMode.fallback]）。
+  void blendLayersNatively(Canvas canvas, Rect rect, double alpha) {
+    final cfg = data.config;
+    for (var i = 0; i < 2; i++) {
+      final material = i == 0 ? cfg.underlayMaterial : cfg.material;
+      if (material == null) continue;
+      final layerAlpha = i == 0 ? 1.0 : alpha;
+      for (final layer in material.layers) {
+        canvas.drawRect(
+          rect,
+          Paint()
+            ..color = layer.color.withValues(alpha: layer.color.a * layerAlpha)
+            ..blendMode = layer.mode.fallback,
+        );
+      }
+    }
   }
 
   void glassUniforms(ui.Image texture, double padding, double ratio) {
@@ -471,7 +528,7 @@ class _RenderGlass extends RenderProxyBox {
     canvas.restore();
   }
 
-  void _drawStroke(Canvas canvas, Offset offset, double dpr) {
+  void _drawStroke(Canvas canvas, Offset offset, double dpr, double alpha) {
     final cfg = data.config;
     final shapePath = cfg.shape.getOuterPath(
       offset & size,
@@ -479,7 +536,7 @@ class _RenderGlass extends RenderProxyBox {
     );
     final stroke = cfg.stroke;
     if (stroke != null) {
-      if (data.ready) {
+      if (has('stroke')) {
         silhouette('stroke', dpr);
         uniform('stroke', 'in_halfViewFloor', [
           (size.width * dpr / 2).floorToDouble(),
@@ -494,7 +551,7 @@ class _RenderGlass extends RenderProxyBox {
         ]);
         final c = stroke.color;
         uniform('stroke', 'in_strokeColor', [c.r, c.g, c.b, c.a]);
-        uniform('stroke', 'in_strokeAlpha', [cfg.alpha]);
+        uniform('stroke', 'in_strokeAlpha', [alpha]);
         light('in_light1', stroke.primary);
         light('in_light2', stroke.secondary);
         drawShader(
@@ -511,9 +568,7 @@ class _RenderGlass extends RenderProxyBox {
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = stroke.width
-            ..color = stroke.color.withValues(
-              alpha: stroke.color.a * cfg.alpha,
-            ),
+            ..color = stroke.color.withValues(alpha: stroke.color.a * alpha),
         );
       }
     }
@@ -535,7 +590,7 @@ class _RenderGlass extends RenderProxyBox {
         ),
         shadow = cfg.shadow;
     if (shadow != null) {
-      if (data.ready) {
+      if (has('shadow')) {
         silhouette('shadow', dpr);
         final reach = math.max(shadow.radius * dpr / 3, 1.0),
             ox = shadow.offsetX * dpr / 3,
@@ -568,49 +623,66 @@ class _RenderGlass extends RenderProxyBox {
         );
       }
     }
-    canvas.saveLayer(rect, Paint());
-    if (data.ready &&
-        backdrop?.snapshot != null &&
-        backdrop?.globalOffset != null) {
+    // 不做仿生着色的表面（栏、菜单、栏内按钮）里，材质**就是**它的全部本体：
+    // 混色层的 alpha 压不住底下那张不透明的模糊背景图，只调层 alpha 的话，
+    // 淡入过程中看到的是「一枚硬边模糊圆片先整个冒出来、颜色再慢慢补上」——
+    // 也就是那种「有延迟、不像柔光玻璃」的观感。源端 GlassButtonSurface 因此
+    // 给 glass 传 alpha = 1，再用 graphicsLayer{alpha} 整层淡入；这里等价地把
+    // alpha 交给 saveLayer，子层一律按满强度画。
+    final fadeAsLayer = !cfg.shading;
+    final surfaceAlpha = fadeAsLayer ? 1.0 : cfg.alpha;
+    canvas.saveLayer(
+      rect,
+      // saveLayer 只取 paint 的 alpha（RGB 不参与），等价于给整层套 Opacity。
+      fadeAsLayer
+          ? (Paint()..color = Color.fromRGBO(0, 0, 0, cfg.alpha))
+          : Paint(),
+    );
+    if (backdrop?.snapshot != null && backdrop?.globalOffset != null) {
       final ratio = (dpr / 4).clamp(.5, 1.0);
       final blur = cfg.material?.blurRadius ?? data.style.blur.small / 3;
       final padding = math.max(blur * 1.5, 24.0),
-          image = prepare(padding, ratio);
-      if (cfg.shading) {
+          image = prepare(padding, ratio, surfaceAlpha);
+      final src = Rect.fromLTWH(
+        padding * ratio,
+        padding * ratio,
+        size.width * ratio,
+        size.height * ratio,
+      );
+      if (cfg.shading && has('glass')) {
         glassUniforms(image, padding, ratio);
         drawShader(
           canvas,
           'glass',
           offset - Offset(padding, padding),
-          Rect.fromLTWH(
-            padding * ratio,
-            padding * ratio,
-            size.width * ratio,
-            size.height * ratio,
-          ),
+          src,
           ratio,
         );
       } else {
+        // 材质本体：模糊过的背景 + 混色层。折射 shader 缺席时也走这里——
+        // 少了折射，但仍是真玻璃，好过退化成一块实色圆片。
+        canvas.save();
+        // mask shader 缺席时得自己裁形，否则方角会溢出圆角。
+        if (!has('mask')) canvas.clipPath(shapePath);
         canvas.drawImageRect(
           image,
-          Rect.fromLTWH(
-            padding * ratio,
-            padding * ratio,
-            size.width * ratio,
-            size.height * ratio,
-          ),
+          src,
           rect,
           Paint()..filterQuality = FilterQuality.medium,
         );
+        if (!_textureBlended) blendLayersNatively(canvas, rect, surfaceAlpha);
+        canvas.restore();
       }
     } else {
+      // 完全没有背景快照（未接 backdrop / 首帧尚未捕获）才退到实色。
       canvas.drawPath(
         shapePath,
-        Paint()..color = data.fill.withValues(alpha: data.fill.a * cfg.alpha),
+        Paint()
+          ..color = data.fill.withValues(alpha: data.fill.a * surfaceAlpha),
       );
     }
-    _drawStroke(canvas, offset, dpr);
-    if (data.ready) {
+    _drawStroke(canvas, offset, dpr, surfaceAlpha);
+    if (has('mask')) {
       silhouette('mask', dpr);
       drawShader(
         canvas,
@@ -622,7 +694,7 @@ class _RenderGlass extends RenderProxyBox {
       );
     }
     canvas.restore();
-    if (data.ready && cfg.shading && data.style.background.unShade < .999) {
+    if (has('rim') && cfg.shading && data.style.background.unShade < .999) {
       final style = data.style, color = cfg.tint ?? data.style.inner.tint;
       silhouette('rim', dpr);
       uniform('rim', 'in_rimEdge', [

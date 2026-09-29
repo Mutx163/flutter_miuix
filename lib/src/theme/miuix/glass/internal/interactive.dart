@@ -10,8 +10,10 @@ class GlassInteractive extends StatefulWidget {
     required this.builder,
     this.selected,
     this.label,
+    this.pointerInput = true,
   });
   final VoidCallback? onTap;
+  final bool pointerInput;
   final Widget Function(BuildContext, bool, bool) builder;
   final bool? selected;
   final String? label;
@@ -34,6 +36,7 @@ class _GlassInteractiveState extends State<GlassInteractive> {
     selected: widget.selected,
     inMutuallyExclusiveGroup: widget.selected != null,
     label: widget.label,
+    onTap: widget.pointerInput ? null : widget.onTap,
     child: FocusableActionDetector(
       enabled: widget.onTap != null,
       mouseCursor: widget.onTap == null
@@ -50,14 +53,16 @@ class _GlassInteractiveState extends State<GlassInteractive> {
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onTapDown: widget.onTap == null
+        onTap: widget.pointerInput ? widget.onTap : null,
+        onTapDown: !widget.pointerInput || widget.onTap == null
             ? null
             : (_) => setState(() => _pressed = true),
-        onTapUp: widget.onTap == null
+        onTapUp: !widget.pointerInput || widget.onTap == null
             ? null
             : (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
+        onTapCancel: widget.pointerInput
+            ? () => setState(() => _pressed = false)
+            : null,
         child: widget.builder(context, _pressed, _focused),
       ),
     ),
