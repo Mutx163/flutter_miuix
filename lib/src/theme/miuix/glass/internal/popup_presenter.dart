@@ -505,14 +505,14 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
     // 「直接长出来」。想找回一点过渡感就调这个系数（0 = 不模糊，0.2~0.4 轻微）。
     const transformMorphBlurScale = 0.0;
     final blur = isTransform
-        ? (1 - content) * 50 / media.devicePixelRatio * transformMorphBlurScale
+        ? (1 - content) * 50 / dpr * transformMorphBlurScale
         : isSecondary
         ? 0.0
         : kind == MiuixGlassPopupMotion.dropdown
         ? (widget.show ? 0.0 : (1 - fade) * 30)
         : kind == MiuixGlassPopupMotion.dialog
         ? 0.0
-        : (1 - content) * 40 / media.devicePixelRatio;
+        : (1 - content) * 40 / dpr;
     // 行内容的透明度 = 「这些按钮此刻看得见吗」，入场与收起都按它算：
     // 二级原先恒为 1（文字 / 分隔线不参与渐隐），改与 fade 同步，收起时先淡出
     // 再卸载，衔接一级「添加」行。
@@ -564,7 +564,7 @@ class _GlassPopupPresenterState extends State<GlassPopupPresenter>
       final blur =
           50 *
           icon /
-          media.devicePixelRatio *
+          dpr *
           transformMorphBlurScale;
       copy = ExcludeSemantics(
         child: IgnorePointer(
